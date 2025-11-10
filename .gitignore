@@ -1,0 +1,13 @@
+# Ignore environment files
+frontend/.env
+backend/.env
+
+# Or ignore all .env files anywhere
+*.env
+
+# Other common ignores
+node_modules/
+dist/
+build/
+.env.local
+.DS_Store
