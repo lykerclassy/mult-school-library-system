@@ -1,42 +1,136 @@
-import React from "react";
-import { Toaster } from "react-hot-toast";
-import Header from "./components/Header";
-import HomePage from "./pages/HomePage";
-import LoginPage from "./pages/LoginPage";
-import RegisterDevPage from "./pages/RegisterDevPage";
-import DashboardRedirectPage from "./pages/DashboardRedirectPage";
-import ProtectedRoute from "./components/ProtectedRoute";
-import DevDashboard from "./pages/DevDashboard";
-import SchoolDashboard from "./pages/SchoolDashboard";
-import LibrarianDashboard from "./pages/LibrarianDashboard";
-import { Routes, Route } from "react-router-dom";
-import axios from "axios";
+// /frontend/src/App.jsx
 
-// Set API base URL (optional, helpful)
-axios.defaults.baseURL = "http://localhost:5000/api";
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext.jsx';
+
+// Layouts and Protected Routes
+import DashboardLayout from './components/layout/DashboardLayout';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Public Pages
+import LoginPage from './pages/LoginPage';
+import RegisterDeveloperPage from './pages/RegisterDeveloperPage';
+
+// --- Feature Pages ---
+// Developer
+import DevDashboard from './pages/DevDashboard';
+
+// School Admin
+import SchoolOverview from './pages/SchoolOverview.jsx';
+import Settings from './pages/Settings.jsx';
+import Books from './pages/Books.jsx';
+import Students from './pages/Students.jsx';
+import Staff from './pages/Staff.jsx';
+
+// Librarian
+import LibrarianDashboard from './pages/LibrarianDashboard.jsx';
+
+// Student
+import StudentPortal from './pages/StudentPortal.jsx';
+import QuizGenerator from './features/quiz/QuizGenerator.jsx';
+import MyBorrowed from './pages/MyBorrowed.jsx'; // <-- IMPORT REAL
+
+// Placeholders
+const Ebooks = () => <div>E-Books Page</div>;
+const QuizHistory = () => <div>Quiz History Page</div>;
+
+// A simple 404 page
+const NotFound = () => (
+  <div className="flex items-center justify-center h-screen">
+    <h1 className="text-4xl font-bold">404 - Page Not Found</h1>
+  </div>
+);
+
+// --- Role-Based Routing ---
+const AppRoutes = () => {
+  const { userInfo } = useAuth();
+
+  // DEVELOPER
+  if (userInfo?.role === 'Developer') {
+    return (
+      <Routes>
+        <Route element={<DashboardLayout />}>
+          <Route path="/" element={<DevDashboard />} />
+          <Route path="/schools" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    );
+  }
+
+  // SCHOOL ADMIN
+  if (userInfo?.role === 'SchoolAdmin') {
+    return (
+      <Routes>
+        <Route element={<DashboardLayout />}>
+          <Route path="/" element={<SchoolOverview />} />
+          <Route path="/transactions" element={<LibrarianDashboard />} />
+          <Route path="/books" element={<Books />} />
+          <Route path="/students" element={<Students />} />
+          <Route path="/staff" element={<Staff />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    );
+  }
+
+  // LIBRARIAN
+  if (userInfo?.role === 'Librarian') {
+    return (
+      <Routes>
+        <Route element={<DashboardLayout />}>
+          <Route path="/" element={<LibrarianDashboard />} /> {/* Main Dash */}
+          <Route path="/books" element={<Books />} />
+          <Route path="/students" element={<Students />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    );
+  }
+
+  // STUDENT
+  if (userInfo?.role === 'Student') {
+    return (
+      <Routes>
+        <Route element={<DashboardLayout />}>
+          <Route path="/" element={<StudentPortal />} />
+          <Route path="/my-books" element={<MyBorrowed />} /> {/* <-- USE REAL */}
+          <Route path="/ebooks" element={<Ebooks />} />
+          <Route path="/quiz" element={<QuizGenerator />} />
+          <Route path="/quiz-history" element={<QuizHistory />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    );
+  }
+
+  // Fallback
+  return (
+    <Routes>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
-      <Header />
-      <Toaster position="top-right" />
-      <main className="container mx-auto max-w-7xl p-4">
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register-dev" element={<RegisterDevPage />} />
-        
-          {/* Protected Routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<DashboardRedirectPage />} />
-            <Route path="/developer-dashboard" element={<DevDashboard />} />
-            <Route path="/school-dashboard" element={<SchoolDashboard />} />
-            <Route path="/librarian-dashboard" element={<LibrarianDashboard />} />
-          </Route>
-        </Routes>
-      </main>
-    </div>
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register-developer" element={<RegisterDeveloperPage />} />
+
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/*" element={<AppRoutes />} />
+      </Route>
+
+      {/* Catch-all 404 Route */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 

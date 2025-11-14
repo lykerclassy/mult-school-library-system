@@ -1,23 +1,25 @@
+// backend/models/Transaction.js
+
 import mongoose from 'mongoose';
 
 const transactionSchema = new mongoose.Schema(
   {
-    book: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: 'Book',
-    },
     student: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
       ref: 'Student',
-    },
-    issuedBy: {
-      type: mongoose.Schema.Types.ObjectId,
       required: true,
-      ref: 'User', // The Librarian or Admin who issued it
     },
-    borrowedDate: {
+    book: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Book',
+      required: true,
+    },
+    school: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'School',
+      required: true,
+    },
+    issueDate: {
       type: Date,
       default: Date.now,
     },
@@ -25,14 +27,17 @@ const transactionSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    returnedDate: {
+    returnDate: {
       type: Date,
-      default: null, // Will be set when the book is returned
     },
-    school: {
+    status: {
+      type: String,
+      enum: ['Issued', 'Returned', 'Overdue'],
+      default: 'Issued',
+    },
+    issuedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: 'School',
+      ref: 'User', // The Librarian/Admin who issued it
     },
   },
   {

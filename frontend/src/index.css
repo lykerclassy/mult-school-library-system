@@ -1,1 +1,27 @@
-@import "tailwindcss";
+/* /frontend/src/index.css */
+
+@import 'tailwindcss';
+
+@layer base {
+  body {
+    /*
+      THE FIX:
+      Use a default Tailwind utility (bg-gray-100) here
+      instead of our custom utility (bg-background).
+      Our custom 'bg-background' will work fine in all our React components.
+    */
+    @apply bg-gray-100 text-gray-900 antialiased;
+  }
+
+  /* Simple scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded bg-gray-300;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+}

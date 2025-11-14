@@ -1,3 +1,5 @@
+// backend/models/Student.js
+
 import mongoose from 'mongoose';
 
 const studentSchema = new mongoose.Schema(
@@ -6,38 +8,32 @@ const studentSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    studentId: {
+    admissionNumber: {
       type: String,
       required: true,
-      // We'll need a way to make this unique *per school*,
-      // which we'll handle in the controller logic.
-    },
-    class: {
-      type: String,
-      required: true,
-    },
-    stream: {
-      type: String,
-    },
-    dorm: {
-      type: String,
-    },
-    parentPhone: {
-      type: String,
     },
     school: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
       ref: 'School',
+      required: true,
     },
+    // --- ADD THIS FIELD ---
+    // This links the student profile to their login account
+    userAccount: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      unique: true,
+      sparse: true, // Allows multiple null values but ensures uniqueness once set
+    },
+    // We'll add more fields later (e.g., form, stream)
   },
   {
     timestamps: true,
   }
 );
 
-// Ensure studentId is unique within a specific school
-studentSchema.index({ studentId: 1, school: 1 }, { unique: true });
+// Create a compound unique index to ensure admissionNumber is unique *per school*
+studentSchema.index({ admissionNumber: 1, school: 1 }, { unique: true });
 
 const Student = mongoose.model('Student', studentSchema);
 export default Student;

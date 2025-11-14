@@ -1,39 +1,40 @@
+// /frontend/src/context/AuthContext.jsx
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [userInfo, setUserInfo] = useState(() => {
-    try {
-      const storedUserInfo = localStorage.getItem('userInfo');
-      return storedUserInfo ? JSON.parse(storedUserInfo) : null;
-    } catch (error) {
-      console.error('Failed to parse userInfo from localStorage', error);
-      return null;
-    }
-  });
+  const [userInfo, setUserInfo] = useState(null);
 
-  const isAuthenticated = Boolean(userInfo);
-
+  // Check localStorage for user info on initial load
   useEffect(() => {
-    if (userInfo) {
-      localStorage.setItem('userInfo', JSON.stringify(userInfo));
-    } else {
-      localStorage.removeItem('userInfo');
+    const storedUser = localStorage.getItem('userInfo');
+    if (storedUser) {
+      setUserInfo(JSON.parse(storedUser));
     }
-  }, [userInfo]);
+  }, []);
 
-  const value = { 
-    userInfo, 
-    setUserInfo, 
-    isAuthenticated,
-    login: (data) => setUserInfo(data),
-    logout: () => setUserInfo(null)
+  // Function to set user info and update localStorage
+  const login = (userData) => {
+    setUserInfo(userData);
+    localStorage.setItem('userInfo', JSON.stringify(userData));
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // Function to clear user info and localStorage
+  const logout = () => {
+    setUserInfo(null);
+    localStorage.removeItem('userInfo');
+  };
+
+  return (
+    <AuthContext.Provider value={{ userInfo, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
+// Custom hook to easily access auth state and functions
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

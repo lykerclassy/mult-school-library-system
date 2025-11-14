@@ -1,47 +1,75 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+// frontend/src/context/AuthContext.jsx
 
-const AuthContext = createContext();
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import apiClient from '../api/axios';
+import { useQuery } from '@tanstack/react-query';
+
+const AuthContext = createContext(null);
+
+// Fetch user data if a cookie is present
+const fetchUser = async () => {
+  try {
+    const { data } = await apiClient.get('/auth/me');
+    return data;
+  } catch (error) {
+    return null; // No valid session
+  }
+};
 
 export const AuthProvider = ({ children }) => {
-  // Try to get user info from localStorage on initial load
-  const [userInfo, setUserInfo] = useState(() => {
-    try {
-      const storedUserInfo = localStorage.getItem('userInfo');
-      return storedUserInfo ? JSON.parse(storedUserInfo) : null;
-    } catch (error) {
-      console.error('Failed to parse userInfo from localStorage', error);
-      return null;
-    }
+  const [userInfo, setUserInfo] = useState(null);
+
+  // Use React Query to fetch the user on load
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['authUser'],
+    queryFn: fetchUser,
+    retry: false, // Don't retry on failure
+    staleTime: Infinity, // User data is considered fresh
+    cacheTime: Infinity,
   });
 
-  // Effect to update localStorage whenever userInfo changes
+  // When data is fetched, update the auth state
   useEffect(() => {
-    if (userInfo) {
-      localStorage.setItem('userInfo', JSON.stringify(userInfo));
-    } else {
-      localStorage.removeItem('userInfo');
+    if (data) {
+      setUserInfo(data);
+    } else if (isError || !isLoading) {
+      // If error or done loading with no data, ensure user is logged out
+      setUserInfo(null);
     }
-  }, [userInfo]);
+  }, [data, isLoading, isError]);
 
-  // Helper: isAuthenticated
-  const isAuthenticated = !!userInfo;
-
-  // Helper: login
+  // Manual login (after form submission)
   const login = (userData) => {
     setUserInfo(userData);
   };
 
-  // Helper: logout
+  // Manual logout
   const logout = () => {
     setUserInfo(null);
+    // We also need to invalidate the 'authUser' query
+    // This will be handled by the Header's logoutMutation
   };
 
-  const value = { userInfo, setUserInfo, isAuthenticated, login, logout };
+  // Show a loading spinner or splash screen while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div>Loading Application...</div>
+      </div>
+    );
+  }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ userInfo, login, logout, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// Custom hook to easily use the auth context
 export const useAuth = () => {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

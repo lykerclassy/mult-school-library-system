@@ -1,3 +1,5 @@
+// backend/models/Book.js
+
 import mongoose from 'mongoose';
 
 const bookSchema = new mongoose.Schema(
@@ -5,6 +7,7 @@ const bookSchema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
+      trim: true,
     },
     author: {
       type: String,
@@ -12,30 +15,36 @@ const bookSchema = new mongoose.Schema(
     },
     isbn: {
       type: String,
+      unique: true,
+    },
+    school: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'School',
+      required: true,
     },
     quantity: {
       type: Number,
       required: true,
       default: 1,
     },
-    available: {
+    quantityAvailable: {
       type: Number,
-      required: true,
-      default: 1,
+      // --- THIS IS THE FIX: 'required: true' has been removed ---
     },
-    school: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: 'School',
-    },
+    // We'll add more fields later (e.g., category, borrowedBy)
   },
   {
     timestamps: true,
   }
 );
 
-// A 'text' index allows us to easily search books by title or author
-bookSchema.index({ title: 'text', author: 'text' });
+// When creating a new book, set available quantity to total quantity
+bookSchema.pre('save', function (next) {
+  if (this.isNew) {
+    this.quantityAvailable = this.quantity;
+  }
+  next();
+});
 
 const Book = mongoose.model('Book', bookSchema);
 export default Book;

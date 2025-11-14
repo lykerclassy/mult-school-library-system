@@ -1,34 +1,50 @@
-import User from '../models/User.js';
+// backend/controllers/userController.js
+
 import asyncHandler from 'express-async-handler';
+import User from '../models/User.js';
 
-// @desc    Add a new Librarian
-// @route   POST /api/users/add-librarian
-// @access  Private (School Admin only)
-const addLibrarian = asyncHandler(async (req, res) => {
-  const { email, password, name } = req.body;
+/**
+ * @desc    Create a new staff member (Librarian)
+ * @route   POST /api/v1/users/staff
+ * @access  Private (SchoolAdmin)
+ */
+const createStaff = asyncHandler(async (req, res) => {
+  const { name, email, password, role } = req.body;
+  const schoolId = req.user.school;
 
-  // 1. Check if email is taken
-  const emailExists = await User.findOne({ email: email.toLowerCase() });
-  if (emailExists) {
+  if (!name || !email || !password || !role) {
+    res.status(400);
+    throw new Error('Please provide all required fields');
+  }
+
+  // Only Admins can create Librarians
+  if (role !== 'Librarian') {
+    res.status(400);
+    throw new Error('You can only create Librarian accounts.');
+  }
+
+  // Check if user email already exists
+  const userExists = await User.findOne({ email });
+  if (userExists) {
     res.status(400);
     throw new Error('User with this email already exists');
   }
 
-  // 2. Create the new librarian
-  const librarian = await User.create({
+  // Create the user
+  const user = await User.create({
     name,
     email,
-    password, // Auto-hashed by the model
-    role: 'LIBRARIAN',
-    school: req.user.schoolId, // <-- MAGIC: Assigns to the Admin's school
+    password,
+    role,
+    school: schoolId,
   });
 
-  if (librarian) {
+  if (user) {
     res.status(201).json({
-      _id: librarian._id,
-      name: librarian.name,
-      email: librarian.email,
-      role: librarian.role,
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
     });
   } else {
     res.status(400);
@@ -36,16 +52,20 @@ const addLibrarian = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Get all librarians for the admin's school
-// @route   GET /api/users/librarians
-// @access  Private (School Admin only)
-const getSchoolLibrarians = asyncHandler(async (req, res) => {
-  const librarians = await User.find({
-    school: req.user.schoolId, // <-- MAGIC: Finds only for their school
-    role: 'LIBRARIAN',
-  }).select('-password');
+/**
+ * @desc    Get all staff for the school
+ * @route   GET /api/v1/users/staff
+ * @access  Private (SchoolAdmin)
+ */
+const getStaff = asyncHandler(async (req, res) => {
+  const staff = await User.find({
+    school: req.user.school,
+    role: { $in: ['SchoolAdmin', 'Librarian'] }, // Find all staff
+  })
+    .select('-password')
+    .sort({ name: 1 });
 
-  res.json(librarians);
+  res.status(200).json(staff);
 });
 
-export { addLibrarian, getSchoolLibrarians };
+export { createStaff, getStaff };

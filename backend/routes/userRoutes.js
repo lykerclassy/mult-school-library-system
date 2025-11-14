@@ -1,15 +1,13 @@
+// backend/routes/userRoutes.js
+
 import express from 'express';
 const router = express.Router();
-import {
-  addLibrarian,
-  getSchoolLibrarians,
-} from '../controllers/userController.js';
+import { createStaff, getStaff } from '../controllers/userController.js';
 import { protect, isSchoolAdmin } from '../middleware/authMiddleware.js';
 
-// All routes are protected and for School Admins only
+// All routes in this file are protected and require School Admin access
 router.use(protect, isSchoolAdmin);
 
-router.route('/add-librarian').post(addLibrarian);
-router.route('/librarians').get(getSchoolLibrarians);
+router.route('/staff').post(createStaff).get(getStaff);
 
 export default router;

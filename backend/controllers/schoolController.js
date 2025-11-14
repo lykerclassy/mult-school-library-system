@@ -1,84 +1,144 @@
+// backend/controllers/schoolController.js
+
 import asyncHandler from 'express-async-handler';
-import mongoose from 'mongoose';
-import School from '../models/School.js';
 import User from '../models/User.js';
+import School from '../models/School.js';
+import Book from '../models/Book.js';
+import Student from '../models/Student.js';
 
-// POST /api/schools/register
-// Creates a School and a SCHOOL_ADMIN user (adminEmail, adminPassword)
+// @desc    Register a new school
+// @route   POST /api/v1/schools/register
+// @access  Private (Developer only)
 const registerSchool = asyncHandler(async (req, res) => {
-  if (mongoose.connection.readyState !== 1) {
-    res.status(503);
-    return res.json({ message: 'Database not connected' });
-  }
+  const { schoolName, schoolAddress, adminName, adminEmail, adminPassword } =
+    req.body;
 
-  const { schoolName, address, contactPhone, adminEmail, adminPassword } = req.body || {};
-
-  if (!schoolName || !address || !adminEmail || !adminPassword) {
+  const schoolExists = await School.findOne({ name: schoolName });
+  if (schoolExists) {
     res.status(400);
-    return res.json({ message: 'Required fields: schoolName, address, adminEmail, adminPassword' });
+    throw new Error('A school with this name already exists');
   }
 
-  const email = String(adminEmail).trim().toLowerCase();
-
-  // check if admin email already exists
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
+  const adminExists = await User.findOne({ email: adminEmail });
+  if (adminExists) {
     res.status(400);
-    return res.json({ message: 'Admin email already in use' });
+    throw new Error('A user with this email already exists');
   }
 
-  // create school first
-  const school = await School.create({
-    name: schoolName,
-    address,
-    contactPhone,
+  const adminUser = new User({
+    name: adminName,
+    email: adminEmail,
+    password: adminPassword,
+    role: 'SchoolAdmin',
   });
 
-  if (!school) {
-    res.status(500);
-    return res.json({ message: 'Failed to create school' });
-  }
+  const school = new School({
+    name: schoolName,
+    address: schoolAddress,
+    admin: adminUser._id,
+  });
 
-  // create admin user and link to school
+  adminUser.school = school._id;
+
   try {
-    const adminUser = await User.create({
-      name: email.split('@')[0],
-      email,
-      password: adminPassword,
-      role: 'SCHOOL_ADMIN',
-      school: school._id,
+    const savedAdmin = await adminUser.save();
+    const savedSchool = await school.save();
+
+    res.status(201).json({
+      message: 'School registered successfully',
+      school: savedSchool,
+      admin: {
+        _id: savedAdmin._id,
+        name: savedAdmin.name,
+        email: savedAdmin.email,
+        role: savedAdmin.role,
+      },
     });
-
-    // attach admin to school
-    school.admin = adminUser._id;
-    await school.save();
-
-    res.status(201).json({ message: 'School and admin created', school: { _id: school._id, name: school.name, address: school.address, contactPhone: school.contactPhone }, admin: { _id: adminUser._id, email: adminUser.email, role: adminUser.role } });
-  } catch (err) {
-    // cleanup created school if admin creation failed
-    console.error('Error creating admin for school:', err);
-    try { await School.findByIdAndDelete(school._id); } catch (e) { /* ignore */ }
-
-    if (err.code === 11000) {
-      res.status(400);
-      return res.json({ message: 'Duplicate key error creating admin' });
-    }
-
-    res.status(500);
-    return res.json({ message: 'Server error creating admin' });
+  } catch (error) {
+    await User.deleteOne({ _id: adminUser._id });
+    await School.deleteOne({ _id: school._id });
+    res.status(400);
+    throw new Error(`Failed to register school: ${error.message}`);
   }
 });
 
-// GET /api/schools
-// Returns list of schools (with admin email optionally)
-const getSchools = asyncHandler(async (req, res) => {
-  if (mongoose.connection.readyState !== 1) {
-    res.status(503);
-    return res.json({ message: 'Database not connected' });
-  }
-
-  const schools = await School.find().populate({ path: 'admin', select: 'name email role' }).lean();
-  res.json(schools);
+// @desc    Get all schools (for Developer Portal)
+// @route   GET /api/v1/schools
+// @access  Private (Developer only)
+const getAllSchools = asyncHandler(async (req, res) => {
+  const schools = await School.find({}).populate('admin', 'name email');
+  res.status(200).json(schools);
 });
 
-export { registerSchool, getSchools };
+// @desc    Get dashboard stats for a School Admin
+// @route   GET /api/v1/schools/stats
+// @access  Private (SchoolAdmin only)
+const getSchoolDashboardStats = asyncHandler(async (req, res) => {
+  const schoolId = req.user.school;
+
+  const totalStudents = await Student.countDocuments({ school: schoolId });
+  const totalBooks = await Book.countDocuments({ school: schoolId });
+  const borrowedBooks = 0; // Placeholder
+  const totalStaff = await User.countDocuments({
+    school: schoolId,
+    role: { $in: ['SchoolAdmin', 'Librarian'] },
+  });
+
+  res.status(200).json({
+    totalStudents,
+    totalBooks,
+    borrowedBooks,
+    totalStaff,
+  });
+});
+
+// @desc    Get school profile for the logged-in admin
+// @route   GET /api/v1/schools/profile
+// @access  Private (SchoolAdmin or SchoolStaff)
+const getSchoolProfile = asyncHandler(async (req, res) => {
+  const school = await School.findById(req.user.school);
+  if (!school) {
+    res.status(404);
+    throw new Error('School not found');
+  }
+  res.status(200).json(school);
+});
+
+// @desc    Update school profile
+// @route   PUT /api/v1/schools/profile
+// @access  Private (SchoolAdmin only)
+const updateSchoolProfile = asyncHandler(async (req, res) => {
+  // --- ADD THIS DEBUGGING LOG ---
+  console.log(
+    '--- updateSchoolProfile CONTROLLER REACHED! Multer is working. ---'
+  );
+  // ---------------------------------
+
+  const school = await School.findById(req.user.school);
+
+  if (!school) {
+    res.status(404);
+    throw new Error('School not found');
+  }
+
+  school.name = req.body.name || school.name;
+  school.address = req.body.address || school.address;
+  school.motto = req.body.motto || school.motto;
+
+  if (req.file) {
+    console.log('File detected by controller:', req.file); // More logging
+    school.logo = req.file.path;
+  }
+
+  const updatedSchool = await school.save();
+  res.status(200).json(updatedSchool);
+});
+
+// --- EXPORT BLOCK ---
+export {
+  registerSchool,
+  getAllSchools,
+  getSchoolDashboardStats,
+  getSchoolProfile,
+  updateSchoolProfile,
+};

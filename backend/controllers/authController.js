@@ -1,28 +1,40 @@
-import mongoose from 'mongoose';
+// backend/controllers/authController.js
+
+import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
 import generateToken from '../utils/generateToken.js';
-import asyncHandler from 'express-async-handler';
+import School from '../models/School.js'; // We need this again
 
-// We need a small helper to handle try/catch blocks in async functions
-// In your backend terminal, run: npm install express-async-handler
-// This wraps our functions and catches errors automatically.
+/**
+ * @desc    Register the first Developer account
+ * @route   POST /api/v1/auth/register-developer
+ * @access  Public
+ */
+const registerDeveloper = asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body;
 
-// @desc    Login user & get token
-// @route   POST /api/auth/login
-// @access  Public
-const loginUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const developerExists = await User.findOne({ role: 'Developer' });
+  if (developerExists) {
+    res.status(403);
+    throw new Error('A Developer account already exists.');
+  }
 
-  // 1. Find user by email
-  const user = await User.findOne({ email });
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error('User already exists');
+  }
 
-  // 2. Check if user exists and password matches
-  if (user && (await user.matchPassword(password))) {
-    // 3. Generate a token and send it as a cookie
+  const user = await User.create({
+    name,
+    email,
+    password,
+    role: 'Developer',
+  });
+
+  if (user) {
     generateToken(res, user._id, user.role, user.school);
-
-    // 4. Send back user data (without password)
-    res.json({
+    res.status(201).json({
       _id: user._id,
       name: user.name,
       email: user.email,
@@ -30,96 +42,120 @@ const loginUser = asyncHandler(async (req, res) => {
       school: user.school,
     });
   } else {
-    res.status(401);
+    res.status(400);
+    throw new Error('Invalid user data');
+  }
+});
+
+/**
+ * @desc    Auth user & get token (Login)
+ * @route   POST /api/v1/auth/login
+ * @access  Public
+ */
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  // 1. Find the user by email
+  const user = await User.findOne({ email });
+
+  // 2. Check if user exists and password matches
+  if (user && (await user.matchPassword(password))) {
+    // 3. Generate token and set cookie
+    generateToken(res, user._id, user.role, user.school);
+
+    // 4. Send back user data
+    res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      school: user.school,
+    });
+  } else {
+    res.status(401); // Unauthorized
     throw new Error('Invalid email or password');
   }
 });
 
-// @desc    Register a new DEVELOPER user
-// @route   POST /api/auth/register-dev
-// @access  Public (for now, or make it private)
-const registerDeveloper = asyncHandler(async (req, res) => {
-  // Quick DB connection check
-  if (mongoose.connection.readyState !== 1) {
-    // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
-    res.status(503);
-    return res.json({ message: 'Database not connected' });
+// --- NEW FUNCTION ---
+/**
+ * @desc    Check a user's email and return associated school
+ * @route   POST /api/v1/auth/check-email
+ * @access  Public
+ */
+const checkUserByEmail = asyncHandler(async (req, res) => {
+  const { email, role } = req.body;
+
+  const user = await User.findOne({ email }).populate('school', 'name');
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User with this email not found');
   }
 
-  console.log('registerDeveloper body:', req.body);
-
-  const { name, email, password } = req.body || {};
-
-  // Basic validation
-  if (!email || !password) {
-    res.status(400);
-    return res.json({ message: 'Email and password are required' });
+  // Check if the user's role matches the login type (e.g., 'Student')
+  if (user.role !== role) {
+    res.status(403);
+    throw new Error(`This email is not registered as a ${role}.`);
   }
 
-  // Normalize email
-  const normalizedEmail = String(email).trim().toLowerCase();
-
-  // 1. Check if email already exists
-  const userExists = await User.findOne({ email: normalizedEmail });
-  if (userExists) {
-    res.status(400);
-    return res.json({ message: 'User already exists with this email' });
+  // For Developer, school is null
+  let schoolName = null;
+  if (user.school) {
+    schoolName = user.school.name;
+  } else if (user.role !== 'Developer') {
+    // A student or admin MUST have a school
+    res.status(404);
+    throw new Error('User is not associated with a school.');
   }
 
-  // 2. Check if a Developer already exists (optional)
-  const devExists = await User.findOne({ role: 'DEVELOPER' });
-  if (devExists) {
-    res.status(400);
-    return res.json({ message: 'A Developer account already exists.' });
-  }
-
-  // 3. Create new user (wrap to catch duplicate-key errors)
-  try {
-    const user = await User.create({
-      name: name ? String(name).trim() : undefined,
-      email: normalizedEmail,
-      password, // hashed by model pre-save
-      role: 'DEVELOPER',
-      school: null,
-    });
-
-    if (user) {
-      generateToken(res, user._id, user.role, user.school);
-      res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      });
-    } else {
-      res.status(400);
-      res.json({ message: 'Invalid user data' });
-    }
-  } catch (err) {
-    console.error('Error in registerDeveloper:', err);
-
-    // Mongo duplicate key error
-    if (err.code === 11000) {
-      const dupField = Object.keys(err.keyValue || {}).join(', ');
-      res.status(400);
-      return res.json({ message: `Duplicate key error: ${dupField}` });
-    }
-
-    // Unexpected error
-    res.status(500);
-    return res.json({ message: 'Server error while registering developer' });
-  }
+  res.status(200).json({
+    name: user.name,
+    schoolName: schoolName, // Will be null for Developer
+  });
 });
+// --- END NEW FUNCTION ---
 
-// @desc    Logout user / clear cookie
-// @route   POST /api/auth/logout
-// @access  Private
-const logoutUser = (req, res) => {
+/**
+ * @desc    Logout user / clear cookie
+ * @route   POST /api/v1/auth/logout
+ * @access  Private
+ */
+const logoutUser = asyncHandler(async (req, res) => {
   res.cookie('jwt', '', {
     httpOnly: true,
     expires: new Date(0),
   });
-  res.status(200).json({ message: 'Logged out successfully' });
-};
 
-export { loginUser, registerDeveloper, logoutUser };
+  res.status(200).json({ message: 'Logged out successfully' });
+});
+
+/**
+ * @desc    Get current user profile
+ * @route   GET /api/v1/auth/me
+ * @access  Private
+ */
+const getMe = asyncHandler(async (req, res) => {
+  const user = req.user;
+
+  if (user) {
+    res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      school: user.school,
+    });
+  } else {
+    res.status(404);
+    throw new Error('User not found');
+  }
+});
+
+export {
+  registerDeveloper,
+  loginUser,
+  checkUserByEmail, // <-- ADD TO EXPORTS
+  logoutUser,
+  getMe,
+};
