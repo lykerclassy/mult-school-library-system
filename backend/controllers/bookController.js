@@ -9,7 +9,7 @@ import Book from '../models/Book.js';
  * @access  Private (SchoolAdmin)
  */
 const addBook = asyncHandler(async (req, res) => {
-  const { title, author, isbn, quantity } = req.body;
+  const { title, author, isbn, quantity, subject, classLevel } = req.body;
   const schoolId = req.user.school;
 
   if (!title || !author || !quantity) {
@@ -17,7 +17,6 @@ const addBook = asyncHandler(async (req, res) => {
     throw new Error('Please provide title, author, and quantity');
   }
 
-  // Check if book with this ISBN already exists in this school
   if (isbn) {
     const bookExists = await Book.findOne({ isbn, school: schoolId });
     if (bookExists) {
@@ -32,24 +31,49 @@ const addBook = asyncHandler(async (req, res) => {
     isbn,
     quantity,
     school: schoolId,
-    // quantityAvailable is set by 'pre-save' hook in model
+    subject: subject || null,
+    classLevel: classLevel || null,
   });
 
   const createdBook = await book.save();
   res.status(201).json(createdBook);
 });
 
+// --- UPDATED FUNCTION ---
 /**
- * @desc    Get all books for the school
+ * @desc    Get all books for the school (paginated)
  * @route   GET /api/v1/books
  * @access  Private (SchoolStaff)
  */
 const getBooks = asyncHandler(async (req, res) => {
-  const books = await Book.find({ school: req.user.school }).sort({
-    title: 1,
-  });
-  res.status(200).json(books);
+  const { page = 1, limit = 10, search = '' } = req.query;
+
+  // Build the query
+  const query = {
+    school: req.user.school,
+  };
+
+  // Add search functionality
+  if (search) {
+    query.$or = [
+      { title: { $regex: search, $options: 'i' } },
+      { author: { $regex: search, $options: 'i' } },
+      { isbn: { $regex: search, $options: 'i' } },
+    ];
+  }
+
+  // Set pagination options
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+    sort: { title: 1 },
+    populate: ['subject', 'classLevel'],
+  };
+
+  const paginatedResults = await Book.paginate(query, options);
+  res.status(200).json(paginatedResults);
 });
+// --- END OF UPDATE ---
 
 /**
  * @desc    Get book by ID
@@ -73,16 +97,15 @@ const getBookById = asyncHandler(async (req, res) => {
  * @access  Private (SchoolAdmin)
  */
 const updateBook = asyncHandler(async (req, res) => {
-  const { title, author, isbn, quantity } = req.body;
+  const { title, author, isbn, quantity, subject, classLevel } = req.body;
 
   const book = await Book.findById(req.params.id);
 
   if (!book || book.school.toString() !== req.user.school.toString()) {
-    res.status(404);
+    res.status(4404);
     throw new Error('Book not found');
   }
 
-  // Check for ISBN conflict
   if (isbn && isbn !== book.isbn) {
     const bookExists = await Book.findOne({
       isbn,
@@ -98,13 +121,13 @@ const updateBook = asyncHandler(async (req, res) => {
   book.title = title || book.title;
   book.author = author || book.author;
   book.isbn = isbn || book.isbn;
+  book.subject = subject || book.subject;
+  book.classLevel = classLevel || book.classLevel;
 
-  // Recalculate available quantity if total quantity is changed
   if (quantity) {
     const changeInQuantity = quantity - book.quantity;
     book.quantity = quantity;
     book.quantityAvailable = book.quantityAvailable + changeInQuantity;
-    // Ensure available doesn't go below zero
     if (book.quantityAvailable < 0) {
       book.quantityAvailable = 0;
     }
@@ -126,9 +149,6 @@ const deleteBook = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Book not found');
   }
-
-  // TODO: Check if book is currently borrowed
-  // For now, we'll delete directly
 
   await book.deleteOne();
   res.status(200).json({ message: 'Book removed successfully' });

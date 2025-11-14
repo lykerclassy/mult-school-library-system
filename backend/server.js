@@ -14,7 +14,13 @@ import studentRoutes from './routes/studentRoutes.js';
 import bookRoutes from './routes/bookRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
 import userRoutes from './routes/userRoutes.js';
-import transactionRoutes from './routes/transactionRoutes.js'; // <-- ADD THIS
+import transactionRoutes from './routes/transactionRoutes.js';
+import subjectRoutes from './routes/subjectRoutes.js';
+import classLevelRoutes from './routes/classLevelRoutes.js';
+import resourceRoutes from './routes/resourceRoutes.js';
+import manualQuizRoutes from './routes/manualQuizRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js'; // <-- ADD THIS
 
 // Load .env variables
 dotenv.config();
@@ -46,9 +52,15 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/schools', schoolRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/books', bookRoutes);
-app.use('/api/v1/quiz', quizRoutes);
+app.use('/api/v1/quiz', quizRoutes); // AI Quiz
+app.use('/api/v1/manual-quiz', manualQuizRoutes);
 app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/transactions', transactionRoutes); // <-- ADD THIS
+app.use('/api/v1/transactions', transactionRoutes);
+app.use('/api/v1/subjects', subjectRoutes);
+app.use('/api/v1/classes', classLevelRoutes);
+app.use('/api/v1/resources', resourceRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/notifications', notificationRoutes); // <-- ADD THIS
 
 // --- Error Handling Middleware ---
 app.use(notFound);

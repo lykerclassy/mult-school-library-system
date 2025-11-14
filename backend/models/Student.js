@@ -1,6 +1,7 @@
 // backend/models/Student.js
 
 import mongoose from 'mongoose';
+import mongoosePaginate from 'mongoose-paginate-v2'; // <-- 1. IMPORT
 
 const studentSchema = new mongoose.Schema(
   {
@@ -17,23 +18,21 @@ const studentSchema = new mongoose.Schema(
       ref: 'School',
       required: true,
     },
-    // --- ADD THIS FIELD ---
-    // This links the student profile to their login account
     userAccount: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       unique: true,
-      sparse: true, // Allows multiple null values but ensures uniqueness once set
+      sparse: true,
     },
-    // We'll add more fields later (e.g., form, stream)
   },
   {
     timestamps: true,
   }
 );
 
-// Create a compound unique index to ensure admissionNumber is unique *per school*
 studentSchema.index({ admissionNumber: 1, school: 1 }, { unique: true });
+
+studentSchema.plugin(mongoosePaginate); // <-- 2. APPLY PLUGIN
 
 const Student = mongoose.model('Student', studentSchema);
 export default Student;

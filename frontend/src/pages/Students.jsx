@@ -1,18 +1,22 @@
 // frontend/src/pages/Students.jsx
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-
+import useDebounce from '../hooks/useDebounce';
+import Pagination from '../components/common/Pagination';
 import Modal from '../components/common/Modal';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
+import ConfirmationModal from '../components/common/ConfirmationModal'; // <-- IMPORT
 
 // --- API Functions ---
-const fetchStudents = async () => {
-  const { data } = await apiClient.get('/students');
+const fetchStudents = async (page, search) => {
+  const { data } = await apiClient.get('/students', {
+    params: { page, search, limit: 10 },
+  });
   return data;
 };
 
@@ -20,49 +24,47 @@ const createStudent = async (studentData) => {
   const { data } = await apiClient.post('/students', studentData);
   return data;
 };
-
 const updateStudent = async ({ id, ...studentData }) => {
   const { data } = await apiClient.put(`/students/${id}`, studentData);
   return data;
 };
 
-// --- Student Form (for Add/Edit) ---
+// --- NEW DELETE FUNCTION ---
+const deleteStudent = async (id) => {
+  const { data } = await apiClient.delete(`/students/${id}`);
+  return data;
+};
+
+// --- (StudentForm is unchanged) ---
 const StudentForm = ({ student, onSuccess }) => {
   const queryClient = useQueryClient();
   const [name, setName] = useState(student?.name || '');
   const [admissionNumber, setAdmissionNumber] = useState(
     student?.admissionNumber || ''
   );
-
-  // Determine if we are in 'edit' mode
   const isEditMode = Boolean(student);
-
-  // Mutation for creating a student
   const createMutation = useMutation({
     mutationFn: createStudent,
     onSuccess: () => {
       toast.success('Student added successfully!');
       queryClient.invalidateQueries(['students']);
-      onSuccess(); // Close the modal
+      onSuccess();
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to add student');
     },
   });
-
-  // Mutation for updating a student
   const updateMutation = useMutation({
     mutationFn: updateStudent,
     onSuccess: () => {
       toast.success('Student updated successfully!');
       queryClient.invalidateQueries(['students']);
-      onSuccess(); // Close the modal
+      onSuccess();
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to update student');
     },
   });
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (isEditMode) {
@@ -71,16 +73,9 @@ const StudentForm = ({ student, onSuccess }) => {
       createMutation.mutate({ name, admissionNumber });
     }
   };
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Input
-        label="Student Name"
-        id="name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-      />
+      <Input label="Student Name" id="name" value={name} onChange={(e) => setName(e.target.value)} required />
       <Input
         label="Admission Number"
         id="admissionNumber"
@@ -99,49 +94,63 @@ const StudentForm = ({ student, onSuccess }) => {
   );
 };
 
-// --- Main Page Component ---
-const Students = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch all students
+// --- Main Page Component (UPDATED) ---
+const Students = () => {
+  const queryClient = useQueryClient(); // <-- Get Query Client
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); // <-- New State
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  
+  const [page, setPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   const {
-    data: students,
+    data: studentsData,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['students'],
-    queryFn: fetchStudents,
+    queryKey: ['students', page, debouncedSearch],
+    queryFn: () => fetchStudents(page, debouncedSearch),
+    keepPreviousData: true,
   });
 
-  // Filter students based on search term
-  const filteredStudents = useMemo(() => {
-    if (!students) return [];
-    return students.filter(
-      (student) =>
-        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [students, searchTerm]);
+  // --- New Delete Mutation ---
+  const deleteMutation = useMutation({
+    mutationFn: deleteStudent,
+    onSuccess: () => {
+      toast.success('Student deleted successfully');
+      queryClient.invalidateQueries(['students']);
+      setIsDeleteModalOpen(false);
+      setSelectedStudent(null);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to delete student');
+    },
+  });
 
-  // Modal handlers
   const openAddModal = () => {
     setSelectedStudent(null);
     setIsModalOpen(true);
   };
-
   const openEditModal = (student) => {
     setSelectedStudent(student);
     setIsModalOpen(true);
   };
-
+  const openDeleteModal = (student) => { // <-- New handler
+    setSelectedStudent(student);
+    setIsDeleteModalOpen(true);
+  };
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedStudent(null);
   };
+  const closeDeleteModal = () => { // <-- New handler
+    setIsDeleteModalOpen(false);
+    setSelectedStudent(null);
+  };
 
-  if (isLoading) return <div>Loading students...</div>;
   if (isError) return <div>Error loading students.</div>;
 
   return (
@@ -150,75 +159,46 @@ const Students = () => {
         Manage Students
       </h1>
 
-      {/* Header: Search and Add Button */}
+      {/* Header (unchanged) */}
       <div className="flex justify-between items-center mb-6">
         <div className="relative w-full max-w-md">
-          <Input
-            type="text"
-            placeholder="Search by name or admission..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-            aria-hidden="true"
-          />
+          <Input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         </div>
-        <button
-          onClick={openAddModal}
-          className="flex items-center space-x-2 py-2 px-4 text-white bg-primary rounded-md shadow-sm hover:bg-blue-700"
-        >
+        <button onClick={openAddModal} className="flex items-center space-x-2 py-2 px-4 text-white bg-primary rounded-md shadow-sm hover:bg-blue-700">
           <Plus className="w-5 h-5" />
           <span>Add Student</span>
         </button>
       </div>
 
-      {/* Students Table */}
+      {/* Table (updated) */}
       <div className="bg-surface rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
+            {/* ... (thead is unchanged) ... */}
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Admission No.
-                </th>
-                {/* --- ADD THIS HEADER --- */}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Login Email
-                </th>
-                {/* --------------------- */}
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  Actions
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Admission No.</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Login Email</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredStudents.map((student) => (
+              {isLoading && (
+                <tr><td colSpan="4" className="p-4 text-center">Loading...</td></tr>
+              )}
+              {!isLoading && studentsData.docs.map((student) => (
                 <tr key={student._id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {student.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {student.admissionNumber}
-                  </td>
-                  {/* --- ADD THIS CELL --- */}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {student.userAccount?.email || 'N/A'}
-                  </td>
-                  {/* ------------------- */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.admissionNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.userAccount?.email || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                    <button
-                      onClick={() => openEditModal(student)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
+                    <button onClick={() => openEditModal(student)} className="text-blue-600 hover:text-blue-900">
                       <Edit className="w-5 h-5" />
                     </button>
-                    {/* Delete button (add functionality later) */}
-                    <button className="text-red-600 hover:text-red-900">
+                    {/* --- DELETE BUTTON IS NOW WIRED --- */}
+                    <button onClick={() => openDeleteModal(student)} className="text-red-600 hover:text-red-900">
                       <Trash2 className="w-5 h-5" />
                     </button>
                   </td>
@@ -227,16 +207,25 @@ const Students = () => {
             </tbody>
           </table>
         </div>
+        {studentsData && (
+          <Pagination data={studentsData} onPageChange={(newPage) => setPage(newPage)} />
+        )}
       </div>
 
-      {/* Add/Edit Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={selectedStudent ? 'Edit Student' : 'Add New Student'}
-      >
+      {/* Add/Edit Modal (unchanged) */}
+      <Modal isOpen={isModalOpen} onClose={closeModal} title={selectedStudent ? 'Edit Student' : 'Add New Student'}>
         <StudentForm student={selectedStudent} onSuccess={closeModal} />
       </Modal>
+
+      {/* --- NEW DELETE MODAL --- */}
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        onConfirm={() => deleteMutation.mutate(selectedStudent._id)}
+        title="Delete Student"
+        message={`Are you sure you want to delete "${selectedStudent?.name}"? This will also delete their login account and cannot be undone.`}
+        isLoading={deleteMutation.isLoading}
+      />
     </div>
   );
 };

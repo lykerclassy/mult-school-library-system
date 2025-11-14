@@ -1,6 +1,7 @@
 // backend/models/Book.js
 
 import mongoose from 'mongoose';
+import mongoosePaginate from 'mongoose-paginate-v2'; // <-- 1. IMPORT
 
 const bookSchema = new mongoose.Schema(
   {
@@ -29,22 +30,29 @@ const bookSchema = new mongoose.Schema(
     },
     quantityAvailable: {
       type: Number,
-      // --- THIS IS THE FIX: 'required: true' has been removed ---
     },
-    // We'll add more fields later (e.g., category, borrowedBy)
+    subject: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subject',
+    },
+    classLevel: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ClassLevel',
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// When creating a new book, set available quantity to total quantity
 bookSchema.pre('save', function (next) {
   if (this.isNew) {
     this.quantityAvailable = this.quantity;
   }
   next();
 });
+
+bookSchema.plugin(mongoosePaginate); // <-- 2. APPLY PLUGIN
 
 const Book = mongoose.model('Book', bookSchema);
 export default Book;

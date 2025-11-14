@@ -15,10 +15,10 @@ import {
   isSchoolAdmin,
   isSchoolStaff,
 } from '../middleware/authMiddleware.js';
-import upload from '../middleware/uploadMiddleware.js';
+// --- UPDATED IMPORT ---
+import { imageUpload } from '../middleware/uploadMiddleware.js';
 
 // --- Developer Routes ---
-// These routes are only for the Developer
 router
   .route('/')
   .get(protect, isDeveloper, getAllSchools);
@@ -27,14 +27,14 @@ router
   .post(protect, isDeveloper, registerSchool);
 
 // --- School Admin Routes ---
-// These routes are for School Staff/Admins
 router
   .route('/stats')
   .get(protect, isSchoolAdmin, getSchoolDashboardStats);
 
 router
   .route('/profile')
-  .get(protect, isSchoolStaff, getSchoolProfile) // Staff can view
-  .put(protect, isSchoolAdmin, upload.single('logo'), updateSchoolProfile); // Only Admin can edit
+  .get(protect, isSchoolStaff, getSchoolProfile)
+  // --- UPDATED USAGE ---
+  .put(protect, isSchoolAdmin, imageUpload.single('logo'), updateSchoolProfile);
 
 export default router;

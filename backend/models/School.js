@@ -7,7 +7,7 @@ const schoolSchema = new mongoose.Schema(
     name: {
       type: String,
       required: [true, 'Please provide a school name'],
-      unique: true,
+      unique: true, // This is the only index we need for 'name'
     },
     address: {
       type: String,
@@ -25,12 +25,13 @@ const schoolSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    // We can add more tenant-specific settings here later
   },
   {
     timestamps: true,
   }
 );
+
+// We remove any extra 'schoolSchema.index({ name: 1 })' from here
 
 const School = mongoose.model('School', schoolSchema);
 export default School;

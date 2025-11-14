@@ -4,7 +4,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext.jsx';
 
-// Layouts and Protected Routes
+// Layouts
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -22,6 +22,9 @@ import Settings from './pages/Settings.jsx';
 import Books from './pages/Books.jsx';
 import Students from './pages/Students.jsx';
 import Staff from './pages/Staff.jsx';
+import Categories from './pages/Categories.jsx';
+import Resources from './pages/Resources.jsx';
+import QuizBuilder from './pages/QuizBuilder.jsx';
 
 // Librarian
 import LibrarianDashboard from './pages/LibrarianDashboard.jsx';
@@ -29,10 +32,13 @@ import LibrarianDashboard from './pages/LibrarianDashboard.jsx';
 // Student
 import StudentPortal from './pages/StudentPortal.jsx';
 import QuizGenerator from './features/quiz/QuizGenerator.jsx';
-import MyBorrowed from './pages/MyBorrowed.jsx'; // <-- IMPORT REAL
+import MyBorrowed from './pages/MyBorrowed.jsx';
+import StudentResources from './pages/StudentResources.jsx';
+import ManualQuizList from './pages/ManualQuizList.jsx'; // <-- IMPORT REAL
+import TakeQuiz from './pages/TakeQuiz.jsx'; // <-- IMPORT REAL
+import Leaderboard from './pages/Leaderboard.jsx'; // <-- IMPORT REAL
 
 // Placeholders
-const Ebooks = () => <div>E-Books Page</div>;
 const QuizHistory = () => <div>Quiz History Page</div>;
 
 // A simple 404 page
@@ -67,6 +73,10 @@ const AppRoutes = () => {
           <Route path="/" element={<SchoolOverview />} />
           <Route path="/transactions" element={<LibrarianDashboard />} />
           <Route path="/books" element={<Books />} />
+          <Route path="/resources" element={<Resources />} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/quiz-builder" element={<QuizBuilder />} />
+          <Route path="/leaderboard" element={<Leaderboard />} /> {/* <-- Admin can see too */}
           <Route path="/students" element={<Students />} />
           <Route path="/staff" element={<Staff />} />
           <Route path="/settings" element={<Settings />} />
@@ -81,8 +91,11 @@ const AppRoutes = () => {
     return (
       <Routes>
         <Route element={<DashboardLayout />}>
-          <Route path="/" element={<LibrarianDashboard />} /> {/* Main Dash */}
+          <Route path="/" element={<LibrarianDashboard />} />
           <Route path="/books" element={<Books />} />
+          <Route path="/resources" element={<Resources />} />
+          <Route path="/quiz-builder" element={<QuizBuilder />} />
+          <Route path="/leaderboard" element={<Leaderboard />} /> {/* <-- Librarian can see too */}
           <Route path="/students" element={<Students />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
@@ -97,9 +110,12 @@ const AppRoutes = () => {
       <Routes>
         <Route element={<DashboardLayout />}>
           <Route path="/" element={<StudentPortal />} />
-          <Route path="/my-books" element={<MyBorrowed />} /> {/* <-- USE REAL */}
-          <Route path="/ebooks" element={<Ebooks />} />
-          <Route path="/quiz" element={<QuizGenerator />} />
+          <Route path="/my-books" element={<MyBorrowed />} />
+          <Route path="/resources" element={<StudentResources />} />
+          <Route path="/ai-quiz" element={<QuizGenerator />} />
+          <Route path="/manual-quiz" element={<ManualQuizList />} /> {/* <-- USE REAL */}
+          <Route path="/manual-quiz/:id" element={<TakeQuiz />} /> {/* <-- NEW DYNAMIC ROUTE */}
+          <Route path="/leaderboard" element={<Leaderboard />} /> {/* <-- USE REAL */}
           <Route path="/quiz-history" element={<QuizHistory />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
@@ -109,11 +125,7 @@ const AppRoutes = () => {
   }
 
   // Fallback
-  return (
-    <Routes>
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
+  return <Routes><Route path="*" element={<NotFound />} /></Routes>;
 };
 
 function App() {

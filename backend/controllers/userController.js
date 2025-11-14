@@ -17,20 +17,17 @@ const createStaff = asyncHandler(async (req, res) => {
     throw new Error('Please provide all required fields');
   }
 
-  // Only Admins can create Librarians
   if (role !== 'Librarian') {
     res.status(400);
     throw new Error('You can only create Librarian accounts.');
   }
 
-  // Check if user email already exists
   const userExists = await User.findOne({ email });
   if (userExists) {
     res.status(400);
     throw new Error('User with this email already exists');
   }
 
-  // Create the user
   const user = await User.create({
     name,
     email,
@@ -60,7 +57,7 @@ const createStaff = asyncHandler(async (req, res) => {
 const getStaff = asyncHandler(async (req, res) => {
   const staff = await User.find({
     school: req.user.school,
-    role: { $in: ['SchoolAdmin', 'Librarian'] }, // Find all staff
+    role: { $in: ['SchoolAdmin', 'Librarian'] },
   })
     .select('-password')
     .sort({ name: 1 });
@@ -68,4 +65,70 @@ const getStaff = asyncHandler(async (req, res) => {
   res.status(200).json(staff);
 });
 
-export { createStaff, getStaff };
+// --- NEW FUNCTION ---
+/**
+ * @desc    Update a user's own profile
+ * @route   PUT /api/v1/users/profile
+ * @access  Private (All users)
+ */
+const updateUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  user.name = req.body.name || user.name;
+  user.email = req.body.email || user.email;
+
+  if (req.body.password) {
+    user.password = req.body.password; // Mongoose 'pre-save' hook will hash it
+  }
+
+  const updatedUser = await user.save();
+
+  res.status(200).json({
+    _id: updatedUser._id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    role: updatedUser.role,
+  });
+});
+
+// --- NEW FUNCTION ---
+/**
+ * @desc    Delete a staff member
+ * @route   DELETE /api/v1/users/staff/:id
+ * @access  Private (SchoolAdmin)
+ */
+const deleteStaff = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  // Prevent admin from deleting themselves
+  if (user._id.toString() === req.user._id.toString()) {
+    res.status(400);
+    throw new Error('You cannot delete your own account.');
+  }
+
+  // Ensure they are deleting a staff member from their school
+  if (
+    user.school.toString() !== req.user.school.toString() ||
+    user.role === 'Student' ||
+    user.role === 'Developer'
+  ) {
+    res.status(403);
+    throw new Error('Not authorized to delete this user');
+  }
+
+  await user.deleteOne();
+  res.status(200).json({ message: 'User deleted successfully' });
+});
+
+
+export { createStaff, getStaff, updateUserProfile, deleteStaff };

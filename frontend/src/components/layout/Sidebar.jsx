@@ -11,14 +11,49 @@ import {
   BookOpen,
   ClipboardList,
   Sparkles,
-  ArrowRightLeft, // Icon for transactions
+  ArrowRightLeft,
+  ChevronsLeft,
+  ChevronsRight,
+  Folder,
+  FileText,
+  Edit, // Icon for Quiz Builder
+  Trophy, // Icon for Leaderboard
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import useSidebarStore from '../../hooks/useSidebar';
+import { twMerge } from 'tailwind-merge';
+
+// Reusable NavItem component
+const NavItem = ({ link }) => {
+  const { isOpen } = useSidebarStore();
+  return (
+    <NavLink
+      to={link.path}
+      className={({ isActive }) =>
+        twMerge(
+          'flex items-center space-x-3 p-2 rounded-md transition-colors text-gray-300 hover:bg-gray-700 hover:text-white',
+          isActive && 'bg-primary text-white',
+          !isOpen && 'justify-center'
+        )
+      }
+    >
+      <link.icon className="w-5 h-5 flex-shrink-0" />
+      <span
+        className={twMerge(
+          'transition-all duration-200',
+          !isOpen && 'w-0 opacity-0'
+        )}
+      >
+        {link.name}
+      </span>
+    </NavLink>
+  );
+};
 
 const Sidebar = () => {
   const { userInfo } = useAuth();
+  const { isOpen, setIsOpen } = useSidebarStore();
 
-  // Define links for all roles
   const navLinks = {
     Developer: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -26,8 +61,11 @@ const Sidebar = () => {
     ],
     SchoolAdmin: [
       { name: 'Overview', icon: LayoutDashboard, path: '/' },
-      { name: 'Transactions', icon: ArrowRightLeft, path: '/transactions' }, // <-- Added for Admin too
+      { name: 'Transactions', icon: ArrowRightLeft, path: '/transactions' },
       { name: 'Books', icon: Book, path: '/books' },
+      { name: 'Resources', icon: FileText, path: '/resources' },
+      { name: 'Categories', icon: Folder, path: '/categories' },
+      { name: 'Quiz Builder', icon: Edit, path: '/quiz-builder' }, // <-- ADDED
       { name: 'Students', icon: Users, path: '/students' },
       { name: 'Staff', icon: Users, path: '/staff' },
       { name: 'Settings', icon: Settings, path: '/settings' },
@@ -35,14 +73,18 @@ const Sidebar = () => {
     Librarian: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
       { name: 'Books', icon: Book, path: '/books' },
+      { name: 'Resources', icon: FileText, path: '/resources' },
+      { name: 'Quiz Builder', icon: Edit, path: '/quiz-builder' }, // <-- ADDED
       { name: 'Students', icon: Users, path: '/students' },
       { name: 'Settings', icon: Settings, path: '/settings' },
     ],
     Student: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
       { name: 'My Borrowed', icon: BookOpen, path: '/my-books' },
-      { name: 'E-Books', icon: ClipboardList, path: '/ebooks' },
-      { name: 'AI Quiz', icon: Sparkles, path: '/quiz' },
+      { name: 'Resources', icon: FileText, path: '/resources' },
+      { name: 'Manual Quiz', icon: Edit, path: '/manual-quiz' }, // <-- ADDED
+      { name: 'AI Quiz (Soon)', icon: Sparkles, path: '/ai-quiz' }, // Renamed
+      { name: 'Leaderboard', icon: Trophy, path: '/leaderboard' }, // <-- ADDED
       { name: 'Quiz History', icon: ClipboardList, path: '/quiz-history' },
       { name: 'Settings', icon: Settings, path: '/settings' },
     ],
@@ -51,30 +93,57 @@ const Sidebar = () => {
   const links = navLinks[userInfo?.role] || [];
 
   return (
-    <aside className="w-64 h-screen bg-gray-800 text-white flex flex-col">
-      <div className="h-16 flex items-center justify-center text-2xl font-bold border-b border-gray-700">
-        LMS Portal
+    <aside
+      className={twMerge(
+        'h-screen bg-gray-800 text-white flex flex-col transition-all duration-300 z-40 fixed md:relative',
+        isOpen ? 'w-64' : 'w-20',
+        !isOpen && 'md:w-20',
+        !isOpen && '-translate-x-full md:translate-x-0'
+      )}
+    >
+      <div
+        className={twMerge(
+          'h-16 flex items-center justify-between border-b border-gray-700 px-4',
+          !isOpen && 'px-0 justify-center'
+        )}
+      >
+        <span
+          className={twMerge(
+            'text-2xl font-bold transition-all',
+            !isOpen && 'w-0 opacity-0'
+          )}
+        >
+          LMS Portal
+        </span>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="p-2 rounded-md hover:bg-gray-700 md:hidden"
+        >
+          <ChevronsLeft className="w-6 h-6" />
+        </button>
       </div>
-      <nav className="flex-1 p-4 space-y-2">
+
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {links.map((link) => (
-          <NavLink
-            key={link.name}
-            to={link.path}
-            className={({ isActive }) =>
-              `flex items-center space-x-3 p-2 rounded-md transition-colors ${
-                isActive
-                  ? 'bg-primary text-white'
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-              }`
-            }
-          >
-            <link.icon className="w-5 h-5" />
-            <span>{link.name}</span>
-          </NavLink>
+          <NavItem key={link.name} link={link} />
         ))}
       </nav>
+
       <div className="p-4 border-t border-gray-700">
-        {/* We can add a footer or user info here later */}
+        <div className={twMerge('text-xs text-gray-400', !isOpen && 'hidden')}>
+          <p>&copy; {new Date().getFullYear()} LMS</p>
+          <p>All rights reserved.</p>
+        </div>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="hidden md:flex items-center justify-center w-full p-2 mt-2 rounded-md hover:bg-gray-700"
+        >
+          {isOpen ? (
+            <ChevronsLeft className="w-6 h-6" />
+          ) : (
+            <ChevronsRight className="w-6 h-6" />
+          )}
+        </button>
       </div>
     </aside>
   );

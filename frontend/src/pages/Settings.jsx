@@ -13,80 +13,52 @@ const fetchSchoolProfile = async () => {
   const { data } = await apiClient.get('/schools/profile');
   return data;
 };
-
 const updateSchoolProfile = async (formData) => {
   const { data } = await apiClient.put('/schools/profile', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data', // Important for file uploads
-    },
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
+  return data;
+};
+// --- NEW API FUNCTION ---
+const updateUserProfile = async (profileData) => {
+  const { data } = await apiClient.put('/users/profile', profileData);
   return data;
 };
 
 // --- Components ---
 
+// --- (SchoolProfileSettings component is unchanged) ---
 const SchoolProfileSettings = () => {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    motto: '',
-  });
+  const [formData, setFormData] = useState({ name: '', address: '', motto: '' });
   const [logoFile, setLogoFile] = useState(null);
   const [preview, setPreview] = useState('');
-
-  // 1. Fetch existing data
-  const { data: school, isLoading } = useQuery({
-    queryKey: ['schoolProfile'],
-    queryFn: fetchSchoolProfile,
-  });
-
-  // 2. Populate form once data is loaded
+  const { data: school, isLoading } = useQuery({ queryKey: ['schoolProfile'], queryFn: fetchSchoolProfile });
   useEffect(() => {
     if (school) {
-      setFormData({
-        name: school.name || '',
-        address: school.address || '',
-        motto: school.motto || '',
-      });
+      setFormData({ name: school.name || '', address: school.address || '', motto: school.motto || '' });
       setPreview(school.logo || '');
     }
   }, [school]);
-
-  // 3. Handle file input change
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setLogoFile(file);
-      setPreview(URL.createObjectURL(file)); // Show local preview
+      setPreview(URL.createObjectURL(file));
     }
   };
-
-  // 4. Setup mutation for update
   const mutation = useMutation({
     mutationFn: updateSchoolProfile,
     onSuccess: (data) => {
       toast.success('School profile updated!');
       queryClient.invalidateQueries(['schoolProfile']);
-      setPreview(data.logo); // Update preview with new Cloudinary URL
+      setPreview(data.logo);
       setLogoFile(null);
     },
-    onError: (error) => {
-      console.error('Mutation Error:', error); // <-- Added for debugging
-      toast.error(error.response?.data?.message || 'Update failed');
-    },
+    onError: (error) => { toast.error(error.response?.data?.message || 'Update failed') },
   });
-
-  // 5. Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // --- DEBUGGING LINE ---
-    // Check your browser console for this message when you click "Save"
-    console.log('handleSubmit function fired!'); 
-    // ----------------------
-
-    // We must use FormData to send files
     const submitData = new FormData();
     submitData.append('name', formData.name);
     submitData.append('address', formData.address);
@@ -94,105 +66,131 @@ const SchoolProfileSettings = () => {
     if (logoFile) {
       submitData.append('logo', logoFile);
     }
-    
-    console.log('Mutating with data:', ...submitData.entries()); // <-- More debugging
     mutation.mutate(submitData);
   };
-
   if (isLoading) return <div>Loading settings...</div>;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Logo Upload */}
       <div className="flex items-center space-x-6">
-        
-        {/* --- THIS IS THE FIX ---
-            We only render the <img> tag if there is a 'preview' URL.
-            This stops the "placeholder.com" error completely.
-        */}
         {preview ? (
-          <img
-            src={preview}
-            alt="School Logo"
-            className="w-24 h-24 rounded-full object-cover bg-gray-200"
-          />
+          <img src={preview} alt="School Logo" className="w-24 h-24 rounded-full object-cover bg-gray-200" />
         ) : (
-          <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-            No Logo
-          </div>
+          <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">No Logo</div>
         )}
-
         <div>
-          <label
-            htmlFor="logo"
-            className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Change Logo
-          </label>
-          <input
-            id="logo"
-            name="logo"
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="sr-only"
-          />
+          <label htmlFor="logo" className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Change Logo</label>
+          <input id="logo" name="logo" type="file" accept="image/*" onChange={handleFileChange} className="sr-only" />
           <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB.</p>
         </div>
       </div>
+      <Input label="School Name" id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+      <Input label="School Address" id="address" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+      <Input label="School Motto" id="motto" value={formData.motto} onChange={(e) => setFormData({ ...formData, motto: e.target.value })} />
+      <div className="pt-2 max-w-xs">
+        <Button type="submit" isLoading={mutation.isLoading}>Save Changes</Button>
+      </div>
+    </form>
+  );
+};
 
-      {/* Text Fields */}
+
+// --- MyProfileSettings Component (UPDATED) ---
+const MyProfileSettings = () => {
+  const { userInfo, login } = useAuth(); // Get login to update context
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(userInfo.name);
+  const [email, setEmail] = useState(userInfo.email);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: updateUserProfile,
+    onSuccess: (data) => {
+      toast.success('Profile updated successfully!');
+      // Update the user info in our global state
+      login(data);
+      // Clear password fields
+      setPassword('');
+      setConfirmPassword('');
+      // Invalidate authUser query to be safe
+      queryClient.invalidateQueries(['authUser']);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Update failed');
+    },
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (password && password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    if (password && password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    
+    // Only send fields that are being updated
+    const profileData = { name, email };
+    if (password) {
+      profileData.password = password;
+    }
+    
+    mutation.mutate(profileData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
       <Input
-        label="School Name"
+        label="Full Name"
         id="name"
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        required
       />
       <Input
-        label="School Address"
-        id="address"
-        value={formData.address}
-        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+        label="Email Address"
+        id="email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+      <hr />
+      <p className="text-sm text-gray-600">
+        Leave password fields blank to keep your current password.
+      </p>
+      <Input
+        label="New Password"
+        id="password"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
       />
       <Input
-        label="School Motto"
-        id="motto"
-        value={formData.motto}
-        onChange={(e) => setFormData({ ...formData, motto: e.target.value })}
+        label="Confirm New Password"
+        id="confirmPassword"
+        type="password"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
       />
-
       <div className="pt-2 max-w-xs">
         <Button type="submit" isLoading={mutation.isLoading}>
-          Save Changes
+          Update Profile
         </Button>
       </div>
     </form>
   );
 };
 
-// --- (The rest of the file is unchanged) ---
-
-const MyProfileSettings = () => {
-  const { userInfo } = useAuth();
-  return (
-    <div>
-      <h3 className="text-lg font-semibold">Update Your Profile</h3>
-      <p>Name: {userInfo?.name}</p>
-      <p>Email: {userInfo?.email}</p>
-      <p className="mt-4 text-gray-500">(Profile update form coming soon...)</p>
-    </div>
-  );
-};
-
+// --- (Main Settings Component is unchanged) ---
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('myProfile');
   const { userInfo } = useAuth();
   const isAdmin = userInfo?.role === 'SchoolAdmin';
   
-  const tabs = [
-    { id: 'myProfile', name: 'My Profile' },
-  ];
-
+  const tabs = [{ id: 'myProfile', name: 'My Profile' }];
   if (isAdmin) {
     tabs.push({ id: 'schoolProfile', name: 'School Profile' });
   }

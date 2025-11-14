@@ -1,9 +1,12 @@
 // backend/middleware/uploadMiddleware.js
 
 import multer from 'multer';
-import { storage } from '../config/cloudinary.js';
+import { imageStorage, fileStorage } from '../config/cloudinary.js';
 
-// Configure multer to use Cloudinary storage
-const upload = multer({ storage: storage });
+// Uploader for images
+const imageUpload = multer({ storage: imageStorage });
 
-export default upload;
+// Uploader for general files
+const fileUpload = multer({ storage: fileStorage });
+
+export { imageUpload, fileUpload };
