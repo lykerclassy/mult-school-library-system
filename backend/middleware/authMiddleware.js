@@ -7,25 +7,17 @@ import User from '../models/User.js';
 // Protect routes - checks for valid JWT
 const protect = asyncHandler(async (req, res, next) => {
   let token;
-
-  // Read the JWT from the httpOnly cookie
   token = req.cookies.jwt;
 
   if (token) {
     try {
-      // Verify the token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Get user from the token's 'userId' and attach it to the request object
-      // Exclude the password field
       req.user = await User.findById(decoded.userId).select('-password');
-
       if (!req.user) {
         res.status(401);
         throw new Error('Not authorized, user not found');
       }
-
-      next(); // Move to the next middleware or route handler
+      next();
     } catch (error) {
       console.error(error);
       res.status(401);
@@ -57,11 +49,14 @@ const isSchoolAdmin = (req, res, next) => {
   }
 };
 
-// Middleware to check for any school staff (Admin or Librarian)
+// --- THIS IS THE CORRECT, UPDATED FUNCTION ---
+// Middleware to check for any school staff (Admin, Librarian, OR Teacher)
 const isSchoolStaff = (req, res, next) => {
   if (
     req.user &&
-    (req.user.role === 'SchoolAdmin' || req.user.role === 'Librarian')
+    (req.user.role === 'SchoolAdmin' ||
+     req.user.role === 'Librarian' ||
+     req.user.role === 'Teacher') // <-- This line is the fix
   ) {
     next();
   } else {
@@ -69,5 +64,6 @@ const isSchoolStaff = (req, res, next) => {
     throw new Error('Not authorized. School Staff access only.');
   }
 };
+// --- END OF FIX ---
 
 export { protect, isDeveloper, isSchoolAdmin, isSchoolStaff };

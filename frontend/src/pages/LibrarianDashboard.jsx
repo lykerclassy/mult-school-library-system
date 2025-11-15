@@ -6,23 +6,24 @@ import apiClient from '../api/axios';
 import toast from 'react-hot-toast';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
+import Modal from '../components/common/Modal';
+import QrScanner from '../components/common/QrScanner';
 import { format } from 'date-fns';
-import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, QrCode } from 'lucide-react';
 
-// --- Components ---
-
+// --- (IssueBookForm component is unchanged) ---
 const IssueBookForm = () => {
   const queryClient = useQueryClient();
   const [studentAdm, setStudentAdm] = useState('');
   const [bookISBN, setBookISBN] = useState('');
   const [days, setDays] = useState(7);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (data) => apiClient.post('/transactions/issue', data),
     onSuccess: () => {
       toast.success('Book issued successfully!');
       queryClient.invalidateQueries(['transactions']);
-      // Clear form
       setStudentAdm('');
       setBookISBN('');
       setDays(7);
@@ -41,51 +42,48 @@ const IssueBookForm = () => {
     });
   };
 
+  const handleScanSuccess = (decodedText) => {
+    setBookISBN(decodedText);
+    setIsScannerOpen(false);
+    toast.success('Book ISBN Scanned!');
+  };
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow mb-8">
-      <h2 className="text-xl font-semibold mb-4 text-gray-800">Issue Book</h2>
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-        <div className="md:col-span-1">
-          <Input
-            label="Student Admission No."
-            id="studentAdm"
-            value={studentAdm}
-            onChange={(e) => setStudentAdm(e.target.value)}
-            placeholder="e.g., 1001"
-            required
-          />
-        </div>
-        <div className="md:col-span-1">
-          <Input
-            label="Book ISBN"
-            id="bookISBN"
-            value={bookISBN}
-            onChange={(e) => setBookISBN(e.target.value)}
-            placeholder="Enter exact ISBN"
-            required
-          />
-        </div>
-        <div className="md:col-span-1">
-          <Input
-            label="Duration (Days)"
-            id="days"
-            type="number"
-            min="1"
-            value={days}
-            onChange={(e) => setDays(e.target.value)}
-            required
-          />
-        </div>
-        <div className="md:col-span-1">
-          <Button type="submit" isLoading={mutation.isLoading}>
-            Issue Book
-          </Button>
-        </div>
-      </form>
-    </div>
+    <>
+      <div className="bg-white p-6 rounded-lg shadow mb-8">
+        <h2 className="text-xl font-semibold mb-4 text-gray-800">Issue Book</h2>
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="md:col-span-1">
+            <Input label="Student Admission No." id="studentAdm" value={studentAdm} onChange={(e) => setStudentAdm(e.target.value)} placeholder="e.g., 1001" required />
+          </div>
+          <div className="md:col-span-1">
+            <label htmlFor="bookISBN" className="block text-sm font-medium text-gray-700">Book ISBN</label>
+            <div className="flex items-center space-x-2 mt-1">
+              <Input id="bookISBN" value={bookISBN} onChange={(e) => setBookISBN(e.target.value)} placeholder="Type or scan ISBN" className="flex-1" required />
+              <Button type="button" onClick={() => setIsScannerOpen(true)} className="w-auto px-3 py-2" title="Scan QR Code">
+                <QrCode className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+          <div className="md:col-span-1">
+            <Input label="Duration (Days)" id="days" type="number" min="1" value={days} onChange={(e) => setDays(e.target.value)} required />
+          </div>
+          <div className="md:col-span-1">
+            <Button type="submit" isLoading={mutation.isLoading}>
+              Issue Book
+            </Button>
+          </div>
+        </form>
+      </div>
+      <Modal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} title="Scan Book QR Code">
+        <QrScanner onScanSuccess={handleScanSuccess} />
+      </Modal>
+    </>
   );
 };
 
+
+// --- TransactionTable Component (UPDATED) ---
 const TransactionTable = () => {
   const queryClient = useQueryClient();
 
@@ -99,12 +97,28 @@ const TransactionTable = () => {
 
   const returnMutation = useMutation({
     mutationFn: (id) => apiClient.post(`/transactions/${id}/return`),
-    onSuccess: () => {
-      toast.success('Book returned!');
+    onSuccess: (data) => {
+      const fine = data.data.fine;
+      if (fine > 0) {
+        toast.success(`Book returned! Fine of ${fine} KES issued.`, { duration: 4000 });
+      } else {
+        toast.success('Book returned on time!');
+      }
       queryClient.invalidateQueries(['transactions']);
     },
     onError: (error) => {
-      toast.error('Failed to return book');
+      toast.error(error.response?.data?.message || 'Failed to return book');
+    },
+  });
+
+  const payFineMutation = useMutation({
+    mutationFn: (id) => apiClient.post(`/transactions/${id}/pay-fine`),
+    onSuccess: () => {
+      toast.success('Fine marked as paid!');
+      queryClient.invalidateQueries(['transactions']);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to pay fine');
     },
   });
 
@@ -120,10 +134,10 @@ const TransactionTable = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Book Title</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issued Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Book</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fine</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Action</th>
             </tr>
           </thead>
@@ -138,36 +152,49 @@ const TransactionTable = () => {
                   {tx.book?.title}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {format(new Date(tx.issueDate), 'PP')}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {format(new Date(tx.dueDate), 'PP')}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
+                  {/* --- UPDATED STATUS BADGE --- */}
                   <span
                     className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      tx.status === 'Issued'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-green-100 text-green-800'
+                      tx.status === 'Issued' ? 'bg-yellow-100 text-yellow-800' :
+                      tx.status === 'Returned' ? 'bg-green-100 text-green-800' :
+                      tx.status === 'Overdue' ? 'bg-red-100 text-red-800' : ''
                     }`}
                   >
                     {tx.status}
                   </span>
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`font-medium ${tx.fine > 0 && tx.fineStatus === 'Unpaid' ? 'text-red-600' : 'text-gray-500'}`}>
+                    {tx.fine} KES
+                  </span>
+                  {tx.fine > 0 && (
+                    <span className={`text-xs ml-1 ${tx.fineStatus === 'Paid' ? 'text-green-600' : 'text-red-600'}`}>
+                      ({tx.fineStatus})
+                    </span>
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  {tx.status === 'Issued' && (
-                    <button
+                  {/* --- UPDATED: Show Return button for Overdue as well --- */}
+                  {(tx.status === 'Issued' || tx.status === 'Overdue') && (
+                    <Button
                       onClick={() => returnMutation.mutate(tx._id)}
-                      disabled={returnMutation.isLoading}
-                      className="text-primary hover:text-blue-900 font-semibold"
+                      isLoading={returnMutation.isLoading}
+                      className="w-auto text-sm py-1"
                     >
                       Return Book
-                    </button>
+                    </Button>
                   )}
-                  {tx.status === 'Returned' && (
-                    <span className="text-gray-400 flex items-center justify-end">
-                      <CheckCircle className="w-4 h-4 mr-1" /> Done
-                    </span>
+                  {tx.status === 'Returned' && tx.fine > 0 && tx.fineStatus === 'Unpaid' && (
+                    <Button
+                      onClick={() => payFineMutation.mutate(tx._id)}
+                      isLoading={payFineMutation.isLoading}
+                      className="w-auto text-sm py-1 bg-green-600 hover:bg-green-700"
+                    >
+                      Pay Fine
+                    </Button>
                   )}
                 </td>
               </tr>
@@ -186,6 +213,7 @@ const TransactionTable = () => {
   );
 };
 
+// --- (Main LibrarianDashboard component is unchanged) ---
 const LibrarianDashboard = () => {
   return (
     <div>

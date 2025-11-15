@@ -10,36 +10,25 @@ import { format } from 'date-fns';
 import Modal from '../components/common/Modal';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
-import ConfirmationModal from '../components/common/ConfirmationModal'; // <-- IMPORT
+import ConfirmationModal from '../components/common/ConfirmationModal';
 
 // --- API Functions ---
-const fetchStaff = async () => {
-  const { data } = await apiClient.get('/users/staff');
-  return data;
-};
+const fetchStaff = async () => (await apiClient.get('/users/staff')).data;
+const createStaff = async (staffData) => (await apiClient.post('/users/staff', staffData)).data;
+const deleteStaff = async (id) => (await apiClient.delete(`/users/staff/${id}`)).data;
 
-const createLibrarian = async (staffData) => {
-  const { data } = await apiClient.post('/users/staff', staffData);
-  return data;
-};
-
-// --- NEW DELETE FUNCTION ---
-const deleteStaff = async (id) => {
-  const { data } = await apiClient.delete(`/users/staff/${id}`);
-  return data;
-};
-
-// --- (StaffForm is unchanged) ---
+// --- Staff Form (UPDATED) ---
 const StaffForm = ({ onSuccess }) => {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('Librarian'); // <-- New state
 
   const createMutation = useMutation({
-    mutationFn: createLibrarian,
+    mutationFn: createStaff,
     onSuccess: () => {
-      toast.success('Librarian account created successfully!');
+      toast.success('Staff account created successfully!');
       queryClient.invalidateQueries(['staff']);
       onSuccess(); // Close the modal
     },
@@ -50,28 +39,61 @@ const StaffForm = ({ onSuccess }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    createMutation.mutate({ name, email, password, role: 'Librarian' });
+    createMutation.mutate({ name, email, password, role });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Input label="Full Name" id="name" value={name} onChange={(e) => setName(e.target.value)} required />
-      <Input label="Email Address" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      <Input label="Password" id="password" type="password" placeholder="Min 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <Input
+        label="Full Name"
+        id="name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        required
+      />
+      <Input
+        label="Email Address"
+        id="email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+      <Input
+        label="Password"
+        id="password"
+        type="password"
+        placeholder="Min 6 characters"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
+      {/* --- New Role Selector --- */}
+      <div>
+        <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>
+        <select
+          id="role"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm"
+        >
+          <option>Librarian</option>
+          <option>Teacher</option>
+        </select>
+      </div>
       <Button type="submit" isLoading={createMutation.isLoading}>
-        Create Librarian Account
+        Create Account
       </Button>
     </form>
   );
 };
 
-
 // --- Main Page Component (UPDATED) ---
 const Staff = () => {
-  const queryClient = useQueryClient(); // <-- Get Query Client
+  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); // <-- New State
-  const [selectedStaff, setSelectedStaff] = useState(null); // <-- New State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const {
@@ -83,7 +105,6 @@ const Staff = () => {
     queryFn: fetchStaff,
   });
 
-  // --- New Delete Mutation ---
   const deleteMutation = useMutation({
     mutationFn: deleteStaff,
     onSuccess: () => {
@@ -106,11 +127,11 @@ const Staff = () => {
     );
   }, [staff, searchTerm]);
 
-  const openDeleteModal = (staffMember) => { // <-- New Handler
+  const openDeleteModal = (staffMember) => {
     setSelectedStaff(staffMember);
     setIsDeleteModalOpen(true);
   };
-  const closeDeleteModal = () => { // <-- New Handler
+  const closeDeleteModal = () => {
     setIsDeleteModalOpen(false);
     setSelectedStaff(null);
   };
@@ -122,23 +143,25 @@ const Staff = () => {
     <div>
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Manage Staff</h1>
 
-      {/* Header (unchanged) */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div className="relative w-full max-w-md">
           <Input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="flex items-center space-x-2 py-2 px-4 text-white bg-primary rounded-md shadow-sm hover:bg-blue-700">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center space-x-2 py-2 px-4 text-white bg-primary rounded-md shadow-sm hover:bg-blue-700"
+        >
           <Plus className="w-5 h-5" />
-          <span>Add Librarian</span>
+          <span>Add Staff</span>
         </button>
       </div>
 
-      {/* Staff Table (updated) */}
+      {/* Staff Table */}
       <div className="bg-surface rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            {/* ... (thead is unchanged) ... */}
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
@@ -152,13 +175,14 @@ const Staff = () => {
               {filteredStaff.map((person) => (
                 <tr key={person._id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{person.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{person.email}</td>
+                  <td className="px-6 py-4 whitespace-nowJrap text-sm text-gray-500">{person.email}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {/* --- UPDATED: Dynamic Role Badge --- */}
                     <span
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        person.role === 'SchoolAdmin'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-green-100 text-green-800'
+                        person.role === 'SchoolAdmin' ? 'bg-blue-100 text-blue-800' :
+                        person.role === 'Teacher' ? 'bg-purple-100 text-purple-800' :
+                        'bg-green-100 text-green-800'
                       }`}
                     >
                       {person.role}
@@ -166,18 +190,13 @@ const Staff = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(person.createdAt), 'PP')}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                    <button
-                      className="text-blue-600 hover:text-blue-900 opacity-30"
-                      title="Edit (coming soon)"
-                      disabled
-                    >
+                    <button className="text-blue-600 hover:text-blue-900 opacity-30" title="Edit (coming soon)" disabled>
                       <Edit className="w-5 h-5" />
                     </button>
-                    {/* --- DELETE BUTTON IS NOW WIRED --- */}
                     <button
                       onClick={() => openDeleteModal(person)}
                       className="text-red-600 hover:text-red-900"
-                      disabled={person.role === 'SchoolAdmin'} // Disable deleting the main admin
+                      disabled={person.role === 'SchoolAdmin'}
                       title={person.role === 'SchoolAdmin' ? "Cannot delete main admin" : "Delete user"}
                     >
                       <Trash2 className="w-5 h-5" />
@@ -190,12 +209,12 @@ const Staff = () => {
         </div>
       </div>
 
-      {/* Add/Edit Modal (unchanged) */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Librarian">
+      {/* Add Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Staff Member">
         <StaffForm onSuccess={() => setIsModalOpen(false)} />
       </Modal>
 
-      {/* --- NEW DELETE MODAL --- */}
+      {/* Delete Modal */}
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={closeDeleteModal}

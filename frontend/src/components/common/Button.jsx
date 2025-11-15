@@ -1,22 +1,28 @@
 // frontend/src/components/common/Button.jsx
 
 import React from 'react';
+import { twMerge } from 'tailwind-merge'; // <-- 1. Import twMerge
 
 const Button = ({
   children,
   type = 'button',
   isLoading = false,
+  className, // <-- 2. Explicitly get className from props
   ...props
 }) => {
   return (
     <button
       type={type}
       disabled={isLoading}
+      // 3. Use twMerge to combine default styles with passed-in styles
+      className={twMerge(
+        'w-full py-2 px-4 text-white bg-primary rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center',
+        className // This will now correctly override 'w-full' when you pass 'w-auto'
+      )}
       {...props}
-      className="w-full py-2 px-4 text-white bg-primary rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isLoading ? (
-        <div className="flex items-center justify-center">
+        <>
           <svg
             className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
             xmlns="http://www.w3.org/2000/svg"
@@ -38,7 +44,7 @@ const Button = ({
             ></path>
           </svg>
           Loading...
-        </div>
+        </>
       ) : (
         children
       )}

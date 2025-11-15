@@ -3,21 +3,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Book,
-  Users,
-  School,
-  Settings,
-  BookOpen,
-  ClipboardList,
-  Sparkles,
-  ArrowRightLeft,
-  ChevronsLeft,
-  ChevronsRight,
-  Folder,
-  FileText,
-  Edit, // Icon for Quiz Builder
-  Trophy, // Icon for Leaderboard
+  LayoutDashboard, Book, Users, School, Settings, BookOpen,
+  ClipboardList, Sparkles, ArrowRightLeft, ChevronsLeft, ChevronsRight,
+  Folder, FileText, Edit, Trophy, Briefcase, Heart, UserCheck,
+  CreditCard, // <-- THIS IS THE FIX. IT WAS MISSING.
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import useSidebarStore from '../../hooks/useSidebar';
@@ -33,7 +22,7 @@ const NavItem = ({ link }) => {
         twMerge(
           'flex items-center space-x-3 p-2 rounded-md transition-colors text-gray-300 hover:bg-gray-700 hover:text-white',
           isActive && 'bg-primary text-white',
-          !isOpen && 'justify-center'
+          !isOpen && 'justify-center' // Center icon when closed
         )
       }
     >
@@ -58,6 +47,7 @@ const Sidebar = () => {
     Developer: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
       { name: 'Schools', icon: School, path: '/schools' },
+      { name: 'Billing & Plans', icon: CreditCard, path: '/plans' },
     ],
     SchoolAdmin: [
       { name: 'Overview', icon: LayoutDashboard, path: '/' },
@@ -65,8 +55,9 @@ const Sidebar = () => {
       { name: 'Books', icon: Book, path: '/books' },
       { name: 'Resources', icon: FileText, path: '/resources' },
       { name: 'Categories', icon: Folder, path: '/categories' },
-      { name: 'Quiz Builder', icon: Edit, path: '/quiz-builder' }, // <-- ADDED
+      { name: 'Quiz Builder', icon: Edit, path: '/quiz-builder' },
       { name: 'Students', icon: Users, path: '/students' },
+      { name: 'Parents', icon: UserCheck, path: '/parents' },
       { name: 'Staff', icon: Users, path: '/staff' },
       { name: 'Settings', icon: Settings, path: '/settings' },
     ],
@@ -74,18 +65,32 @@ const Sidebar = () => {
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
       { name: 'Books', icon: Book, path: '/books' },
       { name: 'Resources', icon: FileText, path: '/resources' },
-      { name: 'Quiz Builder', icon: Edit, path: '/quiz-builder' }, // <-- ADDED
+      { name: 'Quiz Builder', icon: Edit, path: '/quiz-builder' },
       { name: 'Students', icon: Users, path: '/students' },
+      { name: 'Settings', icon: Settings, path: '/settings' },
+    ],
+    Teacher: [
+      { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+      { name: 'Assignments', icon: Briefcase, path: '/teacher/assignments' },
+      { name: 'Resources', icon: FileText, path: '/resources' },
+      { name: 'Quiz Builder', icon: Edit, path: '/quiz-builder' },
+      { name: 'Leaderboard', icon: Trophy, path: '/leaderboard' },
       { name: 'Settings', icon: Settings, path: '/settings' },
     ],
     Student: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
       { name: 'My Borrowed', icon: BookOpen, path: '/my-books' },
       { name: 'Resources', icon: FileText, path: '/resources' },
-      { name: 'Manual Quiz', icon: Edit, path: '/manual-quiz' }, // <-- ADDED
-      { name: 'AI Quiz (Soon)', icon: Sparkles, path: '/ai-quiz' }, // Renamed
-      { name: 'Leaderboard', icon: Trophy, path: '/leaderboard' }, // <-- ADDED
+      { name: 'Assignments', icon: Briefcase, path: '/student/assignments' },
+      { name: 'Manual Quiz', icon: Edit, path: '/manual-quiz' },
+      { name: 'AI Quiz (Soon)', icon: Sparkles, path: '/ai-quiz' },
+      { name: 'Leaderboard', icon: Trophy, path: '/leaderboard' },
       { name: 'Quiz History', icon: ClipboardList, path: '/quiz-history' },
+      { name: 'Settings', icon: Settings, path: '/settings' },
+    ],
+    Parent: [
+      { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+      { name: 'My Children', icon: Heart, path: '/parent/children' },
       { name: 'Settings', icon: Settings, path: '/settings' },
     ],
   };

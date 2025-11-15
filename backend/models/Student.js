@@ -1,7 +1,7 @@
 // backend/models/Student.js
 
 import mongoose from 'mongoose';
-import mongoosePaginate from 'mongoose-paginate-v2'; // <-- 1. IMPORT
+import mongoosePaginate from 'mongoose-paginate-v2';
 
 const studentSchema = new mongoose.Schema(
   {
@@ -24,6 +24,16 @@ const studentSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
+    // --- NEW FIELDS ---
+    classLevel: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ClassLevel',
+    },
+    parent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User', // Refers to a User with the 'Parent' role
+    },
+    // --- END NEW FIELDS ---
   },
   {
     timestamps: true,
@@ -31,8 +41,7 @@ const studentSchema = new mongoose.Schema(
 );
 
 studentSchema.index({ admissionNumber: 1, school: 1 }, { unique: true });
-
-studentSchema.plugin(mongoosePaginate); // <-- 2. APPLY PLUGIN
+studentSchema.plugin(mongoosePaginate);
 
 const Student = mongoose.model('Student', studentSchema);
 export default Student;

@@ -8,6 +8,8 @@ import {
   getStudentById,
   updateStudent,
   deleteStudent,
+  linkParentToStudent,
+  assignClassToStudent, // <-- IMPORT
 } from '../controllers/studentController.js';
 import {
   protect,
@@ -18,17 +20,20 @@ import {
 // All routes are protected and for school staff
 router.use(protect, isSchoolStaff);
 
-// GET /api/v1/students (Staff can view)
 router.route('/').get(getStudents);
 
-// POST /api/v1/students (Admin only)
+// Admin-only routes
 router.route('/').post(isSchoolAdmin, addStudent);
 
-// Routes for a specific student ID
 router
   .route('/:id')
-  .get(getStudentById) // Staff can view
-  .put(isSchoolAdmin, updateStudent) // Admin only
-  .delete(isSchoolAdmin, deleteStudent); // Admin only
+  .get(getStudentById)
+  .put(isSchoolAdmin, updateStudent)
+  .delete(isSchoolAdmin, deleteStudent);
+
+router.route('/:id/link-parent').put(isSchoolAdmin, linkParentToStudent);
+
+// --- NEW ROUTE ---
+router.route('/:id/assign-class').put(isSchoolAdmin, assignClassToStudent);
 
 export default router;

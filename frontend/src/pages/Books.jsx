@@ -1,6 +1,6 @@
 // frontend/src/pages/Books.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import toast from 'react-hot-toast';
@@ -10,7 +10,7 @@ import Pagination from '../components/common/Pagination';
 import Modal from '../components/common/Modal';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
-import ConfirmationModal from '../components/common/ConfirmationModal'; // <-- IMPORT
+import ConfirmationModal from '../components/common/ConfirmationModal';
 
 // --- API Functions ---
 const fetchBooks = async (page, search) => {
@@ -19,7 +19,6 @@ const fetchBooks = async (page, search) => {
   });
   return data;
 };
-
 const createBook = async (bookData) => {
   const { data } = await apiClient.post('/books', bookData);
   return data;
@@ -28,14 +27,17 @@ const updateBook = async ({ id, ...bookData }) => {
   const { data } = await apiClient.put(`/books/${id}`, bookData);
   return data;
 };
-
-// --- NEW DELETE FUNCTION ---
 const deleteBook = async (id) => {
   const { data } = await apiClient.delete(`/books/${id}`);
   return data;
 };
 
-// --- (BookForm is unchanged) ---
+// --- NEW API FUNCTIONS (FOR THE FIX) ---
+const fetchSubjects = async () => (await apiClient.get('/subjects')).data;
+const fetchClassLevels = async () => (await apiClient.get('/classes')).data;
+
+
+// --- BookForm Component (FIXED) ---
 const BookForm = ({ book, onSuccess }) => {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(book?.title || '');
@@ -44,9 +46,21 @@ const BookForm = ({ book, onSuccess }) => {
   const [quantity, setQuantity] = useState(book?.quantity || 1);
   const [subject, setSubject] = useState(book?.subject?._id || '');
   const [classLevel, setClassLevel] = useState(book?.classLevel?._id || '');
-  const { data: subjects } = useQuery({ queryKey: ['subjects'], queryFn: async () => (await apiClient.get('/subjects')).data });
-  const { data: classes } = useQuery({ queryKey: ['classLevels'], queryFn: async () => (await apiClient.get('/classes')).data });
+
+  // --- THIS IS THE FIX ---
+  // We must fetch the categories here so the dropdowns have data
+  const { data: subjects } = useQuery({ 
+    queryKey: ['subjects'], 
+    queryFn: fetchSubjects 
+  });
+  const { data: classes } = useQuery({ 
+    queryKey: ['classLevels'], 
+    queryFn: fetchClassLevels 
+  });
+  // --- END OF FIX ---
+
   const isEditMode = Boolean(book);
+
   const mutation = useMutation({
     mutationFn: isEditMode ? updateBook : createBook,
     onSuccess: () => {
@@ -63,6 +77,7 @@ const BookForm = ({ book, onSuccess }) => {
       );
     },
   });
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const bookData = { 
@@ -79,20 +94,26 @@ const BookForm = ({ book, onSuccess }) => {
       mutation.mutate(bookData);
     }
   };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input label="Book Title" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
       <Input label="Author" id="author" value={author} onChange={(e) => setAuthor(e.target.value)} required />
       <Input label="ISBN (Optional)" id="isbn" value={isbn} onChange={(e) => setIsbn(e.target.value)} />
       <Input label="Quantity" id="quantity" type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
+      
+      {/* This select will now be populated */}
       <select onChange={(e) => setSubject(e.target.value)} value={subject} className="w-full p-2 border rounded-md">
         <option value="">Select Subject (Optional)</option>
         {subjects?.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
       </select>
+      
+      {/* This select will now be populated */}
       <select onChange={(e) => setClassLevel(e.target.value)} value={classLevel} className="w-full p-2 border rounded-md">
         <option value="">Select Class (Optional)</option>
         {classes?.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
       </select>
+      
       <Button type="submit" isLoading={mutation.isLoading}>
         {isEditMode ? 'Update Book' : 'Add Book'}
       </Button>
@@ -101,28 +122,22 @@ const BookForm = ({ book, onSuccess }) => {
 };
 
 
-// --- Main Page Component (UPDATED) ---
+// --- Main Page Component (Unchanged) ---
 const Books = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); // <-- New State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
-  
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300); 
 
-  const {
-    data: booksData,
-    isLoading,
-    isError,
-  } = useQuery({
+  const { data: booksData, isLoading, isError } = useQuery({
     queryKey: ['books', page, debouncedSearch],
     queryFn: () => fetchBooks(page, debouncedSearch),
     keepPreviousData: true,
   });
 
-  // --- New Delete Mutation ---
   const deleteMutation = useMutation({
     mutationFn: deleteBook,
     onSuccess: () => {
@@ -136,29 +151,25 @@ const Books = () => {
     },
   });
 
-  const openAddModal = () => {
-    setSelectedBook(null);
-    setIsModalOpen(true);
-  };
-  const openEditModal = (book) => {
-    setSelectedBook(book);
-    setIsModalOpen(true);
-  };
-  const openDeleteModal = (book) => { // <-- New handler
-    setSelectedBook(book);
-    setIsDeleteModalOpen(true);
-  };
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedBook(null);
-  };
-  const closeDeleteModal = () => { // <-- New handler
-    setIsDeleteModalOpen(false);
-    setSelectedBook(null);
-  };
+  const openAddModal = () => { setSelectedBook(null); setIsModalOpen(true); };
+  const openEditModal = (book) => { setSelectedBook(book); setIsModalOpen(true); };
+  const openDeleteModal = (book) => { setSelectedBook(book); setIsDeleteModalOpen(true); };
+  const closeModal = () => { setIsModalOpen(false); setSelectedBook(null); };
+  const closeDeleteModal = () => { setIsDeleteModalOpen(false); setSelectedBook(null); };
 
   const handleDownloadReport = async () => {
-    // ... (unchanged)
+    try {
+      const response = await apiClient.get('/analytics/reports/all-books', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'all_books_report.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      toast.error('Failed to download report');
+    }
   };
 
   if (isError) return <div>Error loading books.</div>;
@@ -166,8 +177,6 @@ const Books = () => {
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Manage Books</h1>
-
-      {/* Header is unchanged */}
       <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
         <div className="relative w-full max-w-md">
           <Input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
@@ -183,11 +192,9 @@ const Books = () => {
         </div>
       </div>
 
-      {/* Table is updated */}
       <div className="bg-surface rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            {/* ... (thead is unchanged) ... */}
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
@@ -203,7 +210,7 @@ const Books = () => {
               )}
               {!isLoading && booksData.docs.map((book) => (
                 <tr key={book._id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{book.title}</td>
+                  <td className="px-6 py-4 whitespace-nowFrap text-sm font-medium text-gray-900">{book.title}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{book.author}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{book.subject?.name || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{book.quantity} ({book.quantityAvailable})</td>
@@ -211,7 +218,6 @@ const Books = () => {
                     <button onClick={() => openEditModal(book)} className="text-blue-600 hover:text-blue-900">
                       <Edit className="w-5 h-5" />
                     </button>
-                    {/* --- DELETE BUTTON IS NOW WIRED --- */}
                     <button onClick={() => openDeleteModal(book)} className="text-red-600 hover:text-red-900">
                       <Trash2 className="w-5 h-5" />
                     </button>
@@ -226,12 +232,10 @@ const Books = () => {
         )}
       </div>
 
-      {/* Add/Edit Modal (unchanged) */}
       <Modal isOpen={isModalOpen} onClose={closeModal} title={selectedBook ? 'Edit Book' : 'Add New Book'}>
         <BookForm book={selectedBook} onSuccess={closeModal} />
       </Modal>
       
-      {/* --- NEW DELETE MODAL --- */}
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={closeDeleteModal}

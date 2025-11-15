@@ -7,24 +7,19 @@ import toast from 'react-hot-toast';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import { format } from 'date-fns';
+import ManageSchoolModal from '../features/schools/ManageSchoolModal'; // <-- IMPORT MODAL
 
 // --- React Query Functions ---
-
-// 1. Fetch all schools
 const fetchSchools = async () => {
   const { data } = await apiClient.get('/schools');
   return data;
 };
-
-// 2. Register a new school
 const registerSchool = async (schoolData) => {
   const { data } = await apiClient.post('/schools/register', schoolData);
   return data;
 };
 
-// --- Components ---
-
-// School Registration Form
+// --- (RegisterSchoolForm component is unchanged) ---
 const RegisterSchoolForm = () => {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
@@ -39,7 +34,7 @@ const RegisterSchoolForm = () => {
     mutationFn: registerSchool,
     onSuccess: () => {
       toast.success('School registered successfully!');
-      queryClient.invalidateQueries(['schools']); // Refetch the schools list
+      queryClient.invalidateQueries(['schools']);
       setFormData({
         schoolName: '',
         schoolAddress: '',
@@ -112,7 +107,6 @@ const RegisterSchoolForm = () => {
         id="adminPassword"
         type="password"
         value={formData.adminPassword}
-        onChange={handleChange}
         required
       />
       <div className="pt-2">
@@ -124,8 +118,8 @@ const RegisterSchoolForm = () => {
   );
 };
 
-// List of all schools
-const SchoolList = () => {
+// --- List of all schools (UPDATED) ---
+const SchoolList = ({ onManageClick }) => {
   const {
     data: schools,
     isLoading,
@@ -135,6 +129,21 @@ const SchoolList = () => {
     queryKey: ['schools'],
     queryFn: fetchSchools,
   });
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Active':
+        return 'bg-green-100 text-green-800';
+      case 'Trialing':
+        return 'bg-blue-100 text-blue-800';
+      case 'Overdue':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Canceled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   if (isLoading) return <div>Loading schools...</div>;
   if (isError) return <div>Error: {error.message}</div>;
@@ -148,30 +157,12 @@ const SchoolList = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                School Name
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Admin
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Admin Email
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Registered On
-              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">School Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Admin</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Next Billing</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -183,11 +174,24 @@ const SchoolList = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {school.admin?.name || 'N/A'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {school.admin?.email || 'N/A'}
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(school.subscriptionStatus)}`}>
+                    {school.subscriptionStatus}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {format(new Date(school.createdAt), 'PP')}
+                  {school.plan?.name || 'No Plan'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {school.nextBillingDate ? format(new Date(school.nextBillingDate), 'PP') : 'N/A'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <Button
+                    onClick={() => onManageClick(school)}
+                    className="w-auto text-sm py-1"
+                  >
+                    Manage
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -198,15 +202,24 @@ const SchoolList = () => {
   );
 };
 
-// Main Page Component
+// --- Main Page Component (UPDATED) ---
 const DevDashboard = () => {
+  const [managingSchool, setManagingSchool] = useState(null);
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
         Developer Portal
       </h1>
       <RegisterSchoolForm />
-      <SchoolList />
+      <SchoolList onManageClick={setManagingSchool} />
+      
+      {managingSchool && (
+        <ManageSchoolModal
+          school={managingSchool}
+          onClose={() => setManagingSchool(null)}
+        />
+      )}
     </div>
   );
 };

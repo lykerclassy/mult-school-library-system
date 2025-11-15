@@ -1,7 +1,7 @@
 // frontend/src/pages/Resources.jsx
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // <-- IMPORT useQuery
 import apiClient from '../api/axios';
 import toast from 'react-hot-toast';
 import Input from '../components/common/Input';
@@ -14,7 +14,7 @@ const fetchSubjects = async () => (await apiClient.get('/subjects')).data;
 const fetchClassLevels = async () => (await apiClient.get('/classes')).data;
 const fetchResources = async () => (await apiClient.get('/resources')).data;
 
-// --- Upload Form Component ---
+// --- Upload Form Component (FIXED) ---
 const UploadResourceForm = () => {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
@@ -23,9 +23,17 @@ const UploadResourceForm = () => {
   const [subject, setSubject] = useState('');
   const [classLevel, setClassLevel] = useState('');
 
-  // Fetch categories for dropdowns
-  const { data: subjects } = useQuery({ queryKey: ['subjects'], queryFn: fetchSubjects });
-  const { data: classes } = useQuery({ queryKey: ['classLevels'], queryFn: fetchClassLevels });
+  // --- THIS IS THE FIX ---
+  // We must fetch the categories here so the dropdowns have data
+  const { data: subjects } = useQuery({ 
+    queryKey: ['subjects'], 
+    queryFn: fetchSubjects 
+  });
+  const { data: classes } = useQuery({ 
+    queryKey: ['classLevels'], 
+    queryFn: fetchClassLevels 
+  });
+  // --- END OF FIX ---
 
   const mutation = useMutation({
     mutationFn: (formData) => apiClient.post('/resources', formData, {
@@ -40,9 +48,12 @@ const UploadResourceForm = () => {
       setResourceType('E-book');
       setSubject('');
       setClassLevel('');
-      document.getElementById('file-input').value = null; // Clear file input
+      if(document.getElementById('file-input')) {
+        document.getElementById('file-input').value = null; // Clear file input
+      }
     },
     onError: (error) => {
+      // Use the new, clearer error message from our controller
       toast.error(error.response?.data?.message || 'Upload failed');
     },
   });
@@ -74,7 +85,6 @@ const UploadResourceForm = () => {
         required
       />
       
-      {/* File Input */}
       <div>
         <label className="block text-sm font-medium text-gray-700">File</label>
         <div className="mt-1 flex items-center justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
@@ -96,7 +106,6 @@ const UploadResourceForm = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Resource Type */}
         <div>
           <label htmlFor="resourceType" className="block text-sm font-medium text-gray-700">Resource Type</label>
           <select
@@ -112,7 +121,7 @@ const UploadResourceForm = () => {
           </select>
         </div>
         
-        {/* Subject */}
+        {/* This select will now be populated */}
         <div>
           <label htmlFor="subject" className="block text-sm font-medium text-gray-700">Subject (Optional)</label>
           <select
@@ -126,7 +135,7 @@ const UploadResourceForm = () => {
           </select>
         </div>
 
-        {/* Class Level */}
+        {/* This select will now be populated */}
         <div>
           <label htmlFor="classLevel" className="block text-sm font-medium text-gray-700">Class (Optional)</label>
           <select
@@ -146,7 +155,7 @@ const UploadResourceForm = () => {
   );
 };
 
-// --- Resource Table Component ---
+// --- Resource Table Component (Unchanged) ---
 const ResourceTable = () => {
   const queryClient = useQueryClient();
   const { data: resources, isLoading } = useQuery({

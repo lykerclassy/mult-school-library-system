@@ -8,6 +8,7 @@ import {
   getSchoolDashboardStats,
   getSchoolProfile,
   updateSchoolProfile,
+  assignPlanToSchool, // <-- IMPORT
 } from '../controllers/schoolController.js';
 import {
   protect,
@@ -15,7 +16,6 @@ import {
   isSchoolAdmin,
   isSchoolStaff,
 } from '../middleware/authMiddleware.js';
-// --- UPDATED IMPORT ---
 import { imageUpload } from '../middleware/uploadMiddleware.js';
 
 // --- Developer Routes ---
@@ -25,6 +25,11 @@ router
 router
   .route('/register')
   .post(protect, isDeveloper, registerSchool);
+  
+// --- NEW DEVELOPER ROUTE ---
+router
+  .route('/:id/assign-plan')
+  .put(protect, isDeveloper, assignPlanToSchool);
 
 // --- School Admin Routes ---
 router
@@ -34,7 +39,6 @@ router
 router
   .route('/profile')
   .get(protect, isSchoolStaff, getSchoolProfile)
-  // --- UPDATED USAGE ---
   .put(protect, isSchoolAdmin, imageUpload.single('logo'), updateSchoolProfile);
 
 export default router;

@@ -26,19 +26,19 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['Developer', 'SchoolAdmin', 'Librarian', 'Student'],
+      // --- UPDATED ENUM ---
+      enum: ['Developer', 'SchoolAdmin', 'Librarian', 'Teacher', 'Student', 'Parent'],
       required: true,
     },
     school: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'School',
-      // Required for all roles except 'Developer'
       required: function () {
         return this.role !== 'Developer';
       },
     },
     profilePicture: {
-      type: String, // URL from Cloudinary
+      type: String,
       default: '',
     },
   },
@@ -47,24 +47,17 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// --- Mongoose Middleware ---
-
-// 1. Hash password before saving
+// Hash password before saving
 userSchema.pre('save', async function (next) {
-  // Only run this function if password was actually modified
   if (!this.isModified('password')) {
     return next();
   }
-
-  // Hash the password with cost of 12
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
-// --- Mongoose Schema Methods ---
-
-// 2. Method to compare entered password with the hashed password
+// Method to compare passwords
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

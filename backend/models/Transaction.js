@@ -37,8 +37,19 @@ const transactionSchema = new mongoose.Schema(
     },
     issuedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', // The Librarian/Admin who issued it
+      ref: 'User',
     },
+    // --- NEW FIELDS ---
+    fine: {
+      type: Number,
+      default: 0,
+    },
+    fineStatus: {
+      type: String,
+      enum: ['Paid', 'Unpaid'],
+      default: 'Unpaid',
+    },
+    // --- END NEW FIELDS ---
   },
   {
     timestamps: true,

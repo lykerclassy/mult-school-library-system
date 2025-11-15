@@ -7,7 +7,7 @@ const schoolSchema = new mongoose.Schema(
     name: {
       type: String,
       required: [true, 'Please provide a school name'],
-      unique: true, // This is the only index we need for 'name'
+      unique: true,
     },
     address: {
       type: String,
@@ -16,22 +16,33 @@ const schoolSchema = new mongoose.Schema(
       type: String,
     },
     logo: {
-      type: String, // URL from Cloudinary
+      type: String,
       default: '',
     },
     admin: {
-      // The main SchoolAdmin account for this school
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
+    // --- NEW FIELDS ---
+    plan: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Plan',
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: ['Active', 'Trialing', 'Overdue', 'Canceled'],
+      default: 'Trialing',
+    },
+    nextBillingDate: {
+      type: Date,
+    },
+    // --- END NEW FIELDS ---
   },
   {
     timestamps: true,
   }
 );
-
-// We remove any extra 'schoolSchema.index({ name: 1 })' from here
 
 const School = mongoose.model('School', schoolSchema);
 export default School;

@@ -15,6 +15,7 @@ import RegisterDeveloperPage from './pages/RegisterDeveloperPage';
 // --- Feature Pages ---
 // Developer
 import DevDashboard from './pages/DevDashboard';
+import Plans from './pages/Plans.jsx';
 
 // School Admin
 import SchoolOverview from './pages/SchoolOverview.jsx';
@@ -29,14 +30,25 @@ import QuizBuilder from './pages/QuizBuilder.jsx';
 // Librarian
 import LibrarianDashboard from './pages/LibrarianDashboard.jsx';
 
+// Teacher
+import TeacherDashboard from './pages/TeacherDashboard.jsx';
+import TeacherAssignments from './pages/TeacherAssignments.jsx';
+import ViewSubmissions from './pages/ViewSubmissions.jsx';
+
 // Student
 import StudentPortal from './pages/StudentPortal.jsx';
 import QuizGenerator from './features/quiz/QuizGenerator.jsx';
 import MyBorrowed from './pages/MyBorrowed.jsx';
 import StudentResources from './pages/StudentResources.jsx';
-import ManualQuizList from './pages/ManualQuizList.jsx'; // <-- IMPORT REAL
-import TakeQuiz from './pages/TakeQuiz.jsx'; // <-- IMPORT REAL
-import Leaderboard from './pages/Leaderboard.jsx'; // <-- IMPORT REAL
+import ManualQuizList from './pages/ManualQuizList.jsx';
+import TakeQuiz from './pages/TakeQuiz.jsx';
+import Leaderboard from './pages/Leaderboard.jsx';
+import StudentAssignments from './pages/StudentAssignments.jsx';
+import AssignmentDetails from './pages/AssignmentDetails.jsx';
+
+// Parent
+import ParentDashboard from './pages/ParentDashboard.jsx';
+import Parents from './pages/Parents.jsx';
 
 // Placeholders
 const QuizHistory = () => <div>Quiz History Page</div>;
@@ -59,6 +71,7 @@ const AppRoutes = () => {
         <Route element={<DashboardLayout />}>
           <Route path="/" element={<DevDashboard />} />
           <Route path="/schools" element={<Navigate to="/" replace />} />
+          <Route path="/plans" element={<Plans />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
@@ -76,8 +89,9 @@ const AppRoutes = () => {
           <Route path="/resources" element={<Resources />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/quiz-builder" element={<QuizBuilder />} />
-          <Route path="/leaderboard" element={<Leaderboard />} /> {/* <-- Admin can see too */}
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/students" element={<Students />} />
+          <Route path="/parents" element={<Parents />} />
           <Route path="/staff" element={<Staff />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
@@ -95,8 +109,26 @@ const AppRoutes = () => {
           <Route path="/books" element={<Books />} />
           <Route path="/resources" element={<Resources />} />
           <Route path="/quiz-builder" element={<QuizBuilder />} />
-          <Route path="/leaderboard" element={<Leaderboard />} /> {/* <-- Librarian can see too */}
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/students" element={<Students />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    );
+  }
+
+  // TEACHER
+  if (userInfo?.role === 'Teacher') {
+    return (
+      <Routes>
+        <Route element={<DashboardLayout />}>
+          <Route path="/" element={<TeacherDashboard />} />
+          <Route path="/teacher/assignments" element={<TeacherAssignments />} />
+          <Route path="/teacher/assignment/:id/submissions" element={<ViewSubmissions />} />
+          <Route path="/resources" element={<Resources />} />
+          <Route path="/quiz-builder" element={<QuizBuilder />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Route>
@@ -112,11 +144,27 @@ const AppRoutes = () => {
           <Route path="/" element={<StudentPortal />} />
           <Route path="/my-books" element={<MyBorrowed />} />
           <Route path="/resources" element={<StudentResources />} />
+          <Route path="/student/assignments" element={<StudentAssignments />} />
+          <Route path="/student/assignment/:id" element={<AssignmentDetails />} />
           <Route path="/ai-quiz" element={<QuizGenerator />} />
-          <Route path="/manual-quiz" element={<ManualQuizList />} /> {/* <-- USE REAL */}
-          <Route path="/manual-quiz/:id" element={<TakeQuiz />} /> {/* <-- NEW DYNAMIC ROUTE */}
-          <Route path="/leaderboard" element={<Leaderboard />} /> {/* <-- USE REAL */}
+          <Route path="/manual-quiz" element={<ManualQuizList />} />
+          <Route path="/manual-quiz/:id" element={<TakeQuiz />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/quiz-history" element={<QuizHistory />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    );
+  }
+
+  // PARENT
+  if (userInfo?.role === 'Parent') {
+    return (
+      <Routes>
+        <Route element={<DashboardLayout />}>
+          <Route path="/" element={<ParentDashboard />} />
+          <Route path="/parent/children" element={<ParentDashboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Route>
