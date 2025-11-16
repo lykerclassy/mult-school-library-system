@@ -4,14 +4,18 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import { Download, Search, FileText } from 'lucide-react';
+import { createDownloadFilename } from '../utils/fileUtils'; // <-- 1. IMPORT
 
-// --- API Functions ---
+// --- (API Functions are unchanged) ---
 const fetchStudentResources = async () => (await apiClient.get('/resources/student')).data;
 const fetchSubjects = async () => (await apiClient.get('/subjects')).data;
 const fetchClassLevels = async () => (await apiClient.get('/classes')).data;
 
-// --- Resource Card Component ---
+// --- Resource Card Component (UPDATED) ---
 const ResourceCard = ({ resource }) => {
+  // --- 2. CREATE THE FILENAME ---
+  const filename = createDownloadFilename(resource.title, resource.originalFilename);
+
   return (
     <div className="bg-white rounded-lg shadow p-4 flex flex-col justify-between">
       <div>
@@ -35,6 +39,7 @@ const ResourceCard = ({ resource }) => {
         href={resource.fileUrl}
         target="_blank"
         rel="noopener noreferrer"
+        download={filename} // <-- 3. ADD THE DOWNLOAD ATTRIBUTE
         className="w-full mt-2 flex items-center justify-center space-x-2 py-2 px-4 text-white bg-primary rounded-md shadow-sm hover:bg-blue-700"
       >
         <Download className="w-5 h-5" />
@@ -44,21 +49,18 @@ const ResourceCard = ({ resource }) => {
   );
 };
 
-// --- Main Page Component ---
+// --- (Main Page Component is unchanged) ---
 const StudentResources = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [subject, setSubject] = useState('');
   const [classLevel, setClassLevel] = useState('');
   const [resourceType, setResourceType] = useState('');
 
-  // Fetch all data
   const { data: resources, isLoading } = useQuery({ queryKey: ['studentResources'], queryFn: fetchStudentResources });
   const { data: subjects } = useQuery({ queryKey: ['subjects'], queryFn: fetchSubjects });
   const { data: classes } = useQuery({ queryKey: ['classLevels'], queryFn: fetchClassLevels });
-  
   const resourceTypes = ['E-book', 'Past Paper', 'Notes', 'Syllabus'];
 
-  // Filter logic
   const filteredResources = useMemo(() => {
     if (!resources) return [];
     return resources.filter(res => {
@@ -75,17 +77,9 @@ const StudentResources = () => {
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Learning Resources</h1>
-
-      {/* Filter Bar */}
       <div className="bg-white p-4 rounded-lg shadow mb-6 space-y-4">
         <div className="relative w-full">
-          <input
-            type="text"
-            placeholder="Search resources by title..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-md"
-          />
+          <input type="text" placeholder="Search resources by title..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-md" />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -103,8 +97,6 @@ const StudentResources = () => {
           </select>
         </div>
       </div>
-
-      {/* Resource Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredResources.length > 0 ? (
           filteredResources.map(res => <ResourceCard key={res._id} resource={res} />)

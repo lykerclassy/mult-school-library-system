@@ -34,7 +34,11 @@ const getAssignmentsForTeacher = asyncHandler(async (req, res) => {
   res.status(200).json(assignments);
 });
 
-// --- (Student-facing functions are unchanged) ---
+/**
+ * @desc    Get all assignments for the logged-in student
+ * @route   GET /api/v1/assignments/student
+ * @access  Private (Student)
+ */
 const getAssignmentsForStudent = asyncHandler(async (req, res) => {
   const student = await Student.findOne({ userAccount: req.user._id });
   if (!student) { return res.status(404).json({ message: 'Student profile not found.' }); }
@@ -49,6 +53,11 @@ const getAssignmentsForStudent = asyncHandler(async (req, res) => {
   res.status(200).json(assignmentData);
 });
 
+/**
+ * @desc    Get a single assignment for a student
+ * @route   GET /api/v1/assignments/student/:id
+ * @access  Private (Student)
+ */
 const getAssignmentByIdForStudent = asyncHandler(async (req, res) => {
   const assignment = await Assignment.findById(req.params.id)
     .populate('classLevel', 'name').populate('subject', 'name').populate('teacher', 'name');
@@ -63,20 +72,29 @@ const getAssignmentByIdForStudent = asyncHandler(async (req, res) => {
   res.status(200).json({ assignment, submission });
 });
 
+/**
+ * @desc    Submit or update an assignment
+ * @route   POST /api/v1/assignments/:id/submit
+ * @access  Private (Student)
+ */
 const submitAssignment = asyncHandler(async (req, res) => {
   if (!req.file) {
     res.status(400); throw new Error('No file uploaded.');
   }
-  const { path, public_id } = req.file;
+  
+  const { path, public_id, originalname } = req.file;
   const assignmentId = req.params.id;
+
   const student = await Student.findOne({ userAccount: req.user._id });
   if (!student) {
     res.status(404); throw new Error('Student profile not found');
   }
+
   const existingSubmission = await Submission.findOne({
     assignment: assignmentId,
     student: student._id,
   });
+
   if (existingSubmission) {
     if (existingSubmission.status === 'Graded') {
       res.status(400); throw new Error('Cannot resubmit a graded assignment.');
@@ -86,19 +104,31 @@ const submitAssignment = asyncHandler(async (req, res) => {
     }
     existingSubmission.fileUrl = path;
     existingSubmission.cloudinaryPublicId = public_id;
+    existingSubmission.originalFilename = originalname;
     existingSubmission.submittedOn = Date.now();
     existingSubmission.status = 'Submitted';
+    
     const updatedSubmission = await existingSubmission.save();
     res.status(200).json(updatedSubmission);
   } else {
     const submission = await Submission.create({
-      assignment: assignmentId, student: student._id, school: req.user.school,
-      fileUrl: path, cloudinaryPublicId: public_id, status: 'Submitted',
+      assignment: assignmentId,
+      student: student._id,
+      school: req.user.school,
+      fileUrl: path,
+      cloudinaryPublicId: public_id,
+      originalFilename: originalname,
+      status: 'Submitted',
     });
     res.status(201).json(submission);
   }
 });
 
+/**
+ * @desc    Get all submissions for a single assignment
+ * @route   GET /api/v1/assignments/:id/submissions
+ * @access  Private (Teacher)
+ */
 const getSubmissionsForAssignment = asyncHandler(async (req, res) => {
   const assignment = await Assignment.findById(req.params.id);
   if (!assignment || assignment.teacher.toString() !== req.user._id.toString()) {
@@ -109,6 +139,11 @@ const getSubmissionsForAssignment = asyncHandler(async (req, res) => {
   res.status(200).json(submissions);
 });
 
+/**
+ * @desc    Grade a submission
+ * @route   PUT /api/v1/submissions/:id/grade
+ * @access  Private (Teacher)
+ */
 const gradeSubmission = asyncHandler(async (req, res) => {
   const { grade, feedback } = req.body;
   const submission = await Submission.findById(req.params.id).populate('assignment');
@@ -125,6 +160,11 @@ const gradeSubmission = asyncHandler(async (req, res) => {
   res.status(200).json(updatedSubmission);
 });
 
+/**
+ * @desc    Get all assignments for a parent's children
+ * @route   GET /api/v1/assignments/parent
+ * @access  Private (Parent)
+ */
 const getAssignmentsForParent = asyncHandler(async (req, res) => {
   const children = await Student.find({ parent: req.user._id }).select('_id name classLevel');
   if (!children || children.length === 0) {
@@ -149,8 +189,6 @@ const getAssignmentsForParent = asyncHandler(async (req, res) => {
   res.status(200).json(results);
 });
 
-
-// --- NEW FUNCTIONS ---
 
 /**
  * @desc    Get a single assignment for the teacher (for editing)
@@ -234,7 +272,7 @@ const deleteAssignment = asyncHandler(async (req, res) => {
 });
 
 
-// --- EXPORT BLOCK (UPDATED) ---
+// --- EXPORT BLOCK ---
 export {
   createAssignment,
   getAssignmentsForTeacher,
@@ -244,7 +282,7 @@ export {
   getSubmissionsForAssignment,
   gradeSubmission,
   getAssignmentsForParent,
-  getAssignmentByIdForTeacher, // <-- ADDED
-  updateAssignment, // <-- ADDED
-  deleteAssignment, // <-- ADDED
+  getAssignmentByIdForTeacher,
+  updateAssignment,
+  deleteAssignment,
 };

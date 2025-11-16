@@ -8,7 +8,8 @@ import {
   getSchoolDashboardStats,
   getSchoolProfile,
   updateSchoolProfile,
-  assignPlanToSchool, // <-- IMPORT
+  assignPlanToSchool,
+  toggleSchoolStatus, // <-- IMPORT
 } from '../controllers/schoolController.js';
 import {
   protect,
@@ -26,10 +27,14 @@ router
   .route('/register')
   .post(protect, isDeveloper, registerSchool);
   
-// --- NEW DEVELOPER ROUTE ---
 router
   .route('/:id/assign-plan')
   .put(protect, isDeveloper, assignPlanToSchool);
+  
+// --- NEW DEVELOPER ROUTE ---
+router
+  .route('/:id/toggle-status')
+  .put(protect, isDeveloper, toggleSchoolStatus);
 
 // --- School Admin Routes ---
 router

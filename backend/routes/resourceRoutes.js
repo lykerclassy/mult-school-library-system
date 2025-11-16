@@ -7,15 +7,21 @@ import {
   getResources,
   getStudentResources,
   deleteResource,
+  uploadImageForEditor, // <-- IMPORT
 } from '../controllers/resourceController.js';
 import { protect, isSchoolStaff } from '../middleware/authMiddleware.js';
-import { fileUpload } from '../middleware/uploadMiddleware.js'; // Use the file uploader
+// --- IMPORT BOTH UPLOADERS ---
+import { fileUpload, imageUpload } from '../middleware/uploadMiddleware.js';
 
 // --- Student Route ---
-// (Must be defined *before* the '/:id' route)
 router.route('/student').get(protect, getStudentResources);
 
-// --- Staff Routes ---
+// --- NEW Editor Image Upload Route (for staff) ---
+router
+  .route('/editor-image-upload')
+  .post(protect, isSchoolStaff, imageUpload.single('file'), uploadImageForEditor);
+
+// --- Staff Resource Routes ---
 router
   .route('/')
   .post(protect, isSchoolStaff, fileUpload.single('file'), uploadResource)

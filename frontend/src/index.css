@@ -1,4 +1,7 @@
 /* /frontend/src/index.css */
+@import 'katex/dist/katex.min.css'; /* <-- 1. RE-ADD THIS LINE */
+
+@import 'suneditor/dist/css/suneditor.min.css';
 
 @import 'tailwindcss';
 

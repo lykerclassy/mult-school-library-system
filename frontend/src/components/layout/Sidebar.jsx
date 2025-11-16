@@ -5,14 +5,13 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Book, Users, School, Settings, BookOpen,
   ClipboardList, Sparkles, ArrowRightLeft, ChevronsLeft, ChevronsRight,
-  Folder, FileText, Edit, Trophy, Briefcase, Heart, UserCheck,
-  CreditCard, // <-- THIS IS THE FIX. IT WAS MISSING.
+  Folder, FileText, Edit, Trophy, Briefcase, Heart, UserCheck, CreditCard,
+  Megaphone, LifeBuoy, SlidersHorizontal, Calendar,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import useSidebarStore from '../../hooks/useSidebar';
 import { twMerge } from 'tailwind-merge';
 
-// Reusable NavItem component
 const NavItem = ({ link }) => {
   const { isOpen } = useSidebarStore();
   return (
@@ -22,7 +21,7 @@ const NavItem = ({ link }) => {
         twMerge(
           'flex items-center space-x-3 p-2 rounded-md transition-colors text-gray-300 hover:bg-gray-700 hover:text-white',
           isActive && 'bg-primary text-white',
-          !isOpen && 'justify-center' // Center icon when closed
+          !isOpen && 'justify-center'
         )
       }
     >
@@ -48,9 +47,14 @@ const Sidebar = () => {
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
       { name: 'Schools', icon: School, path: '/schools' },
       { name: 'Billing & Plans', icon: CreditCard, path: '/plans' },
+      { name: 'Announcements', icon: Megaphone, path: '/dev/announcements' },
+      { name: 'Support Tickets', icon: LifeBuoy, path: '/dev/support' },
+      { name: 'System Settings', icon: SlidersHorizontal, path: '/dev/settings' },
     ],
     SchoolAdmin: [
       { name: 'Overview', icon: LayoutDashboard, path: '/' },
+      { name: 'Announcements', icon: Megaphone, path: '/announcements' },
+      { name: 'Timetables', icon: Calendar, path: '/admin/timetables' },
       { name: 'Transactions', icon: ArrowRightLeft, path: '/transactions' },
       { name: 'Books', icon: Book, path: '/books' },
       { name: 'Resources', icon: FileText, path: '/resources' },
@@ -59,10 +63,12 @@ const Sidebar = () => {
       { name: 'Students', icon: Users, path: '/students' },
       { name: 'Parents', icon: UserCheck, path: '/parents' },
       { name: 'Staff', icon: Users, path: '/staff' },
+      { name: 'Support', icon: LifeBuoy, path: '/support' },
       { name: 'Settings', icon: Settings, path: '/settings' },
     ],
     Librarian: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+      { name: 'Announcements', icon: Megaphone, path: '/announcements' },
       { name: 'Books', icon: Book, path: '/books' },
       { name: 'Resources', icon: FileText, path: '/resources' },
       { name: 'Quiz Builder', icon: Edit, path: '/quiz-builder' },
@@ -71,6 +77,8 @@ const Sidebar = () => {
     ],
     Teacher: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+      { name: 'Announcements', icon: Megaphone, path: '/announcements' },
+      { name: 'Timetable', icon: Calendar, path: '/my-timetable' },
       { name: 'Assignments', icon: Briefcase, path: '/teacher/assignments' },
       { name: 'Resources', icon: FileText, path: '/resources' },
       { name: 'Quiz Builder', icon: Edit, path: '/quiz-builder' },
@@ -79,24 +87,28 @@ const Sidebar = () => {
     ],
     Student: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+      { name: 'Announcements', icon: Megaphone, path: '/announcements' },
+      { name: 'Timetable', icon: Calendar, path: '/my-timetable' },
       { name: 'My Borrowed', icon: BookOpen, path: '/my-books' },
       { name: 'Resources', icon: FileText, path: '/resources' },
       { name: 'Assignments', icon: Briefcase, path: '/student/assignments' },
       { name: 'Manual Quiz', icon: Edit, path: '/manual-quiz' },
-      { name: 'AI Quiz (Soon)', icon: Sparkles, path: '/ai-quiz' },
+      // --- THIS IS THE FIX ---
+      { name: 'AI Quiz', icon: Sparkles, path: '/ai-quiz' },
+      // --- END OF FIX ---
       { name: 'Leaderboard', icon: Trophy, path: '/leaderboard' },
       { name: 'Quiz History', icon: ClipboardList, path: '/quiz-history' },
       { name: 'Settings', icon: Settings, path: '/settings' },
     ],
     Parent: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+      { name: 'Announcements', icon: Megaphone, path: '/announcements' },
       { name: 'My Children', icon: Heart, path: '/parent/children' },
       { name: 'Settings', icon: Settings, path: '/settings' },
     ],
   };
 
   const links = navLinks[userInfo?.role] || [];
-
   return (
     <aside
       className={twMerge(

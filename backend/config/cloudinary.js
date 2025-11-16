@@ -2,25 +2,15 @@
 
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import dotenv from 'dotenv';
+import { currentConfig } from './globalConfigStore.js';
 
-dotenv.config();
-
-// --- START DEBUGGING ---
-// These logs will print to your backend terminal when the server starts.
-// Check if these keys EXACTLY match your new keys from the Cloudinary dashboard.
-console.log('--- Cloudinary Config Debug ---');
-console.log('CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
-console.log('API_KEY:', process.env.CLOUDINARY_API_KEY);
-console.log('API_SECRET (First 5 chars):', process.env.CLOUDINARY_API_SECRET?.substring(0, 5));
-console.log('-------------------------------');
-// --- END DEBUGGING ---
-
+// Configure Cloudinary
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: currentConfig.cloudinaryCloudName,
+  api_key: currentConfig.cloudinaryApiKey,
+  api_secret: currentConfig.cloudinaryApiSecret,
 });
+console.log('Cloudinary has been configured.');
 
 // 1. Storage for IMAGES (logos, profile pics)
 const imageStorage = new CloudinaryStorage({
@@ -28,6 +18,12 @@ const imageStorage = new CloudinaryStorage({
   params: {
     folder: 'school-library-system/images',
     allowed_formats: ['jpg', 'png', 'jpeg'],
+    // --- THIS IS THE FIX ---
+    // Auto-convert/resize any uploaded image
+    transformation: [
+      { width: 800, height: 800, crop: 'limit', quality: 'auto:good' }
+    ]
+    // --- END OF FIX ---
   },
 });
 
@@ -36,7 +32,7 @@ const fileStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'school-library-system/resources',
-    resource_type: 'auto', 
+    resource_type: 'auto',
   },
 });
 

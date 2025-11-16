@@ -8,13 +8,13 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { Upload, CheckCircle, Download } from 'lucide-react';
 import Button from '../components/common/Button';
+import { createDownloadFilename } from '../utils/fileUtils'; // <-- 1. IMPORT
 
-// --- API Functions ---
+// --- (API Functions are unchanged) ---
 const fetchAssignment = async (id) => {
   const { data } = await apiClient.get(`/assignments/student/${id}`);
   return data;
 };
-
 const submitAssignment = async ({ id, formData }) => {
   const { data } = await apiClient.post(`/assignments/${id}/submit`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -22,7 +22,7 @@ const submitAssignment = async ({ id, formData }) => {
   return data;
 };
 
-// --- Main Page Component ---
+// --- Main Page Component (UPDATED) ---
 const AssignmentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -36,11 +36,9 @@ const AssignmentDetails = () => {
   const mutation = useMutation({
     mutationFn: submitAssignment,
     onSuccess: (data) => {
-      // Check if it was a resubmit or initial submit
-      const isResubmit = data.status === 200; // Our backend sends 200 on update, 201 on create
-      toast.success(isResubmit ? 'Resubmitted successfully!' : 'Assignment submitted successfully!');
-      refetch(); // Refetch data to show new submission status
-      setFile(null); // Clear the file input
+      toast.success('Assignment submitted successfully!');
+      refetch();
+      setFile(null);
       if (document.getElementById('file-input')) {
         document.getElementById('file-input').value = null;
       }
@@ -66,9 +64,14 @@ const AssignmentDetails = () => {
   const { assignment, submission } = data;
   const isGraded = submission?.status === 'Graded';
 
+  // --- 2. CREATE THE FILENAME ---
+  const downloadName = submission
+    ? createDownloadFilename(assignment.title, submission.originalFilename)
+    : '';
+
   return (
     <div>
-      {/* Header */}
+      {/* ... (Header and Instructions are unchanged) ... */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h1 className="text-3xl font-bold text-gray-800">{assignment.title}</h1>
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500 mt-2">
@@ -80,20 +83,17 @@ const AssignmentDetails = () => {
           </span>
         </div>
       </div>
-
-      {/* Instructions */}
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold text-gray-700 mb-3">Instructions</h2>
         <p className="text-gray-600 whitespace-pre-wrap">{assignment.instructions}</p>
       </div>
 
-      {/* Submission Box */}
+      {/* Submission Box (UPDATED) */}
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-xl font-semibold text-gray-700 mb-3">
           {isGraded ? 'Your Graded Submission' : 'Your Submission'}
         </h2>
         
-        {/* --- Show submission status if it exists --- */}
         {submission && (
           <div className={`p-4 rounded-lg border mb-4 ${
             isGraded ? 'bg-green-50 border-green-300' : 'bg-blue-50 border-blue-300'
@@ -112,6 +112,7 @@ const AssignmentDetails = () => {
                 href={submission.fileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                download={downloadName} // <-- 3. ADD THE DOWNLOAD ATTRIBUTE
                 className="flex items-center space-x-2 py-2 px-4 text-primary bg-white border border-primary rounded-md shadow-sm hover:bg-gray-50"
               >
                 <Download className="w-5 h-5" />
@@ -127,8 +128,8 @@ const AssignmentDetails = () => {
           </div>
         )}
 
-        {/* --- Show Upload Form IF NOT Graded --- */}
         {!isGraded && (
+          // ... (The form is unchanged) ...
           <form onSubmit={handleSubmit}>
             <p className="text-sm text-gray-600 mb-2">
               {submission ? 'Want to resubmit? Your new file will replace the old one.' : 'Upload your completed work here.'}
@@ -137,10 +138,7 @@ const AssignmentDetails = () => {
               <div className="space-y-1 text-center">
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
                 <div className="flex text-sm text-gray-600">
-                  <label
-                    htmlFor="file-input"
-                    className="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-blue-700"
-                  >
+                  <label htmlFor="file-input" className="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-blue-700">
                     <span>Upload your file</span>
                     <input id="file-input" name="file" type="file" className="sr-only" onChange={(e) => setFile(e.target.files[0])} />
                   </label>

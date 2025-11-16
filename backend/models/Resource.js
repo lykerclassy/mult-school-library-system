@@ -10,17 +10,23 @@ const resourceSchema = new mongoose.Schema(
       trim: true,
     },
     fileUrl: {
-      type: String, // Cloudinary URL
+      type: String,
       required: true,
     },
     cloudinaryPublicId: {
-      type: String, // For deleting from Cloudinary
+      type: String,
       required: true,
     },
     fileType: {
-      type: String, // e.g., 'pdf', 'docx'
+      type: String,
       required: true,
     },
+    // --- NEW FIELD ---
+    originalFilename: {
+      type: String,
+      required: true,
+    },
+    // --- END NEW FIELD ---
     resourceType: {
       type: String,
       enum: ['E-book', 'Past Paper', 'Notes', 'Syllabus'],

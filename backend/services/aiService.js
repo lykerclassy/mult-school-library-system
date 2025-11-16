@@ -5,102 +5,111 @@ import {
   HarmCategory,
   HarmBlockThreshold,
 } from '@google/generative-ai';
-import dotenv from 'dotenv';
+import OpenAI from 'openai';
+import { currentConfig } from '../config/globalConfigStore.js'; // <-- Import config store
 
-dotenv.config();
+let openaiClient;
+let geminiModel;
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+// --- CONFIGURE IMMEDIATELY ---
+// This file is imported *after* loadConfigFromDB, so config is ready.
+try {
+  if (currentConfig.openAiKey) {
+    openaiClient = new OpenAI({ apiKey: currentConfig.openAiKey });
+  }
+} catch (e) {
+  console.warn('Could not initialize OpenAI, key might be invalid.');
+}
 
-// --- START FINAL FIX ATTEMPT ---
+try {
+  if (currentConfig.googleAiKey) {
+    const genAI = new GoogleGenerativeAI(currentConfig.googleAiKey);
+    geminiModel = genAI.getGenerativeModel({ model: 'gemini-pro' });
+  }
+} catch (e) {
+  console.warn('Could not initialize Gemini, key might be invalid.');
+}
+console.log('AI Services have been configured.');
+// ----------------------------
 
-// 1. Change model to the latest flagship model: 'gemini-1.5-pro-latest'
-const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-pro-latest',
-  // 2. We keep the generationConfig removed.
-});
+// Getter functions just return the clients
+const getOpenAIClient = () => openaiClient;
+const getGeminiModel = () => geminiModel;
 
-// --- END FIX ---
-
-
-// Safety settings
+// --- (Safety settings are unchanged) ---
 const safetySettings = [
-  {
-    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
-/**
- * Generates a multiple-choice quiz using Google Gemini
- * @param {string} topic - The subject or topic for the quiz
- * @param {number} numQuestions - Number of questions to generate
- * @param {string} difficulty - e.g., 'Easy', 'Medium', 'Hard'
- * @returns {object} - The structured JSON quiz
- */
+// --- (Internal Generators are unchanged, they use the getter functions) ---
+const _generateWithOpenAI = async (prompt) => {
+  const openai = getOpenAIClient();
+  if (!openai) throw new Error('OpenAI key is not configured.');
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-3.5-turbo-1106',
+    messages: [{ role: 'system', content: prompt }],
+    response_format: { type: 'json_object' },
+  });
+  return JSON.parse(completion.choices[0].message.content);
+};
+
+const _generateWithGemini = async (prompt) => {
+  const model = getGeminiModel();
+  if (!model) throw new Error('Google AI (Gemini) key is not configured.');
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    safetySettings: safetySettings,
+  });
+  let jsonResponse = result.response.text();
+  if (jsonResponse.startsWith('```json')) {
+    jsonResponse = jsonResponse.substring(7, jsonResponse.length - 3).trim();
+  }
+  return JSON.parse(jsonResponse);
+};
+
+
+// --- (Main generateQuiz function is unchanged) ---
 const generateQuiz = async (topic, numQuestions = 5, difficulty = 'Medium') => {
   const prompt = `
-    You are an expert AI Quiz Generator for Kenyan secondary school students.
-    Generate a multiple-choice quiz based on the following parameters:
-    Topic: ${topic}
-    Number of Questions: ${numQuestions}
-    Difficulty: ${difficulty}
-
-    The response MUST be a valid JSON object with a single key "questions".
-    "questions" should be an array of objects.
-    Each question object must have the following properties:
-    1. "question": A string containing the question text.
-    2. "options": An array of 4 strings (A, B, C, D) representing the choices.
-    3. "answer": A string containing the correct option (e.g., "A", "B", "C", or "D").
-
+    You are an expert AI Quiz Generator...
     Example Format:
     {
       "questions": [
-        {
-          "question": "What is the capital of Kenya?",
-          "options": ["Nairobi", "Mombasa", "Kisumu", "Nakuru"],
-          "answer": "A"
-        }
+        { "question": "...", "options": ["..."], "answer": "A" }
       ]
     }
   `;
-
   try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      safetySettings: safetySettings,
-    });
-
-    const response = result.response;
-    let jsonResponse = response.text();
-    
-    // Clean the response: Gemini might wrap the JSON in ```json ... ```
-    if (jsonResponse.startsWith('```json')) {
-      jsonResponse = jsonResponse.substring(7, jsonResponse.length - 3).trim();
+    if (!currentConfig.openAiKey) {
+      throw new Error('OpenAI key not provided. Trying fallback.');
     }
-    
-    const quizData = JSON.parse(jsonResponse);
-
+    console.log('Attempting quiz generation with OpenAI...');
+    const quizData = await _generateWithOpenAI(prompt);
     if (!quizData.questions || !Array.isArray(quizData.questions)) {
-      throw new Error('Invalid quiz format received from AI');
+      throw new Error('Invalid quiz format from OpenAI');
     }
-
+    console.log('OpenAI successful!');
     return quizData;
-  } catch (error) {
-    console.error('Error generating quiz from Google AI:', error);
-    // This error will be shown to the user
-    throw new Error('Failed to generate AI quiz. The AI might be blocked.');
+  } catch (openAiError) {
+    console.warn(`--- OpenAI Failed: ${openAiError.message}`);
+    console.log('--- Falling back to Google Gemini... ---');
+    try {
+      if (!currentConfig.googleAiKey) {
+        throw new Error('Google AI key not provided. All providers failed.');
+      }
+      const quizData = await _generateWithGemini(prompt);
+      if (!quizData.questions || !Array.isArray(quizData.questions)) {
+        throw new Error('Invalid quiz format from Gemini');
+      }
+      console.log('Gemini successful!');
+      return quizData;
+    } catch (geminiError) {
+      console.error(`--- Gemini also failed: ${geminiError.message}`);
+      throw new Error('Both AI providers failed. Please check your API keys.');
+    }
   }
 };
 

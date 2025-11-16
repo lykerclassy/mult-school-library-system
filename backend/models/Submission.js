@@ -24,21 +24,26 @@ const submissionSchema = new mongoose.Schema(
       default: Date.now,
     },
     fileUrl: {
-      type: String, // Cloudinary URL
+      type: String,
     },
     cloudinaryPublicId: {
       type: String,
     },
+    // --- NEW FIELD ---
+    originalFilename: {
+      type: String,
+    },
+    // --- END NEW FIELD ---
     status: {
       type: String,
       enum: ['Submitted', 'Graded'],
       default: 'Submitted',
     },
     grade: {
-      type: String, // e.g., "A", "85%", "10/10"
+      type: String,
     },
     feedback: {
-      type: String, // Comments from the teacher
+      type: String,
     },
   },
   {
@@ -46,7 +51,6 @@ const submissionSchema = new mongoose.Schema(
   }
 );
 
-// A student can only submit one file per assignment
 submissionSchema.index({ assignment: 1, student: 1 }, { unique: true });
 
 const Submission = mongoose.model('Submission', submissionSchema);

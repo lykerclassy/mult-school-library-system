@@ -6,36 +6,34 @@ import apiClient from '../api/axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Button from '../components/common/Button';
+import DOMPurify from 'dompurify';
 
-// --- API Functions ---
+// --- (API Functions are unchanged) ---
 const fetchQuiz = async (quizId) => {
   const { data } = await apiClient.get(`/manual-quiz/student/${quizId}`);
   return data;
 };
-
 const submitQuiz = async ({ quizId, answers }) => {
   const { data } = await apiClient.post(`/manual-quiz/${quizId}/submit`, { answers });
   return data;
 };
 
-// --- Main Page Component ---
+// --- Main Page Component (UPDATED) ---
 const TakeQuiz = () => {
-  const { id } = useParams(); // Get quiz ID from URL
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [answers, setAnswers] = useState({}); // Stores { "questionId": "optionId" }
-  const [result, setResult] = useState(null); // Stores { score, totalQuestions }
+  const [answers, setAnswers] = useState({});
+  const [result, setResult] = useState(null);
 
-  // Fetch the quiz questions
   const { data: quiz, isLoading } = useQuery({
     queryKey: ['takeQuiz', id],
     queryFn: () => fetchQuiz(id),
   });
 
-  // Mutation for submitting answers
   const mutation = useMutation({
     mutationFn: submitQuiz,
     onSuccess: (data) => {
-      setResult(data); // Show the score
+      setResult(data);
       toast.success('Quiz submitted successfully!');
     },
     onError: (error) => {
@@ -57,7 +55,7 @@ const TakeQuiz = () => {
 
   if (isLoading) return <div>Loading quiz...</div>;
 
-  // --- Show Results Screen ---
+  // --- (Result Screen is unchanged) ---
   if (result) {
     return (
       <div className="flex flex-col items-center justify-center p-6">
@@ -76,21 +74,25 @@ const TakeQuiz = () => {
     );
   }
   
-  // --- Show Quiz Screen ---
+  // --- Quiz Screen (UPDATED) ---
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-800 mb-6">{quiz?.title}</h1>
       <form onSubmit={handleSubmit} className="space-y-8">
         {quiz?.questions.map((q, index) => (
           <div key={q._id} className="bg-white p-6 rounded-lg shadow">
-            <p className="font-semibold text-lg mb-4">
-              {index + 1}. {q.questionText}
-            </p>
+            <div className="font-semibold text-lg mb-4 flex items-start">
+              <span className="mr-2">{index + 1}.</span>
+              <div
+                className="prose"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(q.questionText) }}
+              />
+            </div>
             <div className="space-y-3">
               {q.options.map((opt) => (
                 <label
                   key={opt._id}
-                  className={`block w-full p-3 border rounded-md cursor-pointer ${
+                  className={`flex items-start w-full p-3 border rounded-md cursor-pointer ${
                     answers[q._id] === opt._id ? 'bg-blue-100 border-primary' : 'bg-gray-50'
                   }`}
                 >
@@ -100,9 +102,15 @@ const TakeQuiz = () => {
                     value={opt._id}
                     checked={answers[q._id] === opt._id}
                     onChange={() => handleOptionChange(q._id, opt._id)}
-                    className="mr-3"
+                    className="mr-3 mt-1"
                   />
-                  {opt.text}
+                  {/* --- THIS IS THE FIX --- */}
+                  {/* This div "steals" the click. pointer-events-none makes clicks go through it. */}
+                  <div
+                    className="prose pointer-events-none"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(opt.text) }}
+                  />
+                  {/* --- END OF FIX --- */}
                 </label>
               ))}
             </div>
