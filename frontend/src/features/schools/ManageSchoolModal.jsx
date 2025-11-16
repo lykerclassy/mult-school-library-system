@@ -23,12 +23,16 @@ const ManageSchoolModal = ({ school, onClose }) => {
   const [status, setStatus] = useState(school?.subscriptionStatus || 'Trialing');
   const [nextBillingDate, setNextBillingDate] = useState('');
 
-  // Set initial date from school data
+  // --- THIS IS THE FIX ---
+  // The useEffect was missing the 'school' dependency and had a bad date format
   useEffect(() => {
     if (school?.nextBillingDate) {
-      setNextBillingDate(new Date(school.nextBillingDate).toISOString().split('T')[0]);
+      // Format the date to 'YYYY-MM-DD' for the <input type="date">
+      const formattedDate = new Date(school.nextBillingDate).toISOString().split('T')[0];
+      setNextBillingDate(formattedDate);
     }
-  }, [school]);
+  }, [school]); // <-- It must run when 'school' loads
+  // --- END OF FIX ---
 
   // Fetch all available plans for the dropdown
   const { data: plans, isLoading: isLoadingPlans } = useQuery({

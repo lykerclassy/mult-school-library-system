@@ -9,7 +9,8 @@ import {
   getSchoolProfile,
   updateSchoolProfile,
   assignPlanToSchool,
-  toggleSchoolStatus, // <-- IMPORT
+  toggleSchoolStatus,
+  deleteSchool, // <-- IMPORT
 } from '../controllers/schoolController.js';
 import {
   protect,
@@ -23,15 +24,20 @@ import { imageUpload } from '../middleware/uploadMiddleware.js';
 router
   .route('/')
   .get(protect, isDeveloper, getAllSchools);
+  
 router
   .route('/register')
   .post(protect, isDeveloper, registerSchool);
+
+// --- NEW DEVELOPER ROUTE (for a specific school) ---
+router
+  .route('/:id')
+  .delete(protect, isDeveloper, deleteSchool); // <-- ADD THIS
   
 router
   .route('/:id/assign-plan')
   .put(protect, isDeveloper, assignPlanToSchool);
   
-// --- NEW DEVELOPER ROUTE ---
 router
   .route('/:id/toggle-status')
   .put(protect, isDeveloper, toggleSchoolStatus);

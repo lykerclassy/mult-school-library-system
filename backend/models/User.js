@@ -2,7 +2,7 @@
 
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import mongoosePaginate from 'mongoose-paginate-v2'; // <-- 1. IMPORT
+import mongoosePaginate from 'mongoose-paginate-v2'; // <-- Make sure this is imported
 
 const userSchema = new mongoose.Schema(
   {
@@ -47,7 +47,6 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// (Middleware and methods are unchanged)
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     return next();
@@ -56,11 +55,15 @@ userSchema.pre('save', async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
+
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-userSchema.plugin(mongoosePaginate); // <-- 2. APPLY PLUGIN
+// --- THIS IS THE FIX ---
+// This line adds the .paginate() function to the User model
+userSchema.plugin(mongoosePaginate);
+// --- END OF FIX ---
 
 const User = mongoose.model('User', userSchema);
 export default User;

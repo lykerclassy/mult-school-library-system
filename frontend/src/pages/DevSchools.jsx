@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { Plus, Power, PowerOff } from 'lucide-react';
+import { Plus, Power, PowerOff, Trash2 } from 'lucide-react'; // <-- IMPORT TRASH
 import Button from '../components/common/Button';
 import RegisterSchoolModal from '../features/schools/RegisterSchoolModal';
 import ManageSchoolModal from '../features/schools/ManageSchoolModal';
@@ -14,6 +14,7 @@ import ConfirmationModal from '../components/common/ConfirmationModal';
 // --- API Functions ---
 const fetchSchools = async () => (await apiClient.get('/schools')).data;
 const toggleStatus = async (id) => (await apiClient.put(`/schools/${id}/toggle-status`)).data;
+const deleteSchool = async (id) => (await apiClient.delete(`/schools/${id}`)).data; // <-- NEW
 
 // --- Main Page Component ---
 const DevSchools = () => {
@@ -21,6 +22,7 @@ const DevSchools = () => {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [managingSchool, setManagingSchool] = useState(null);
   const [togglingSchool, setTogglingSchool] = useState(null);
+  const [deletingSchool, setDeletingSchool] = useState(null); // <-- NEW STATE
 
   const { data: schools, isLoading } = useQuery({
     queryKey: ['schools'],
@@ -35,6 +37,19 @@ const DevSchools = () => {
       setTogglingSchool(null);
     },
     onError: (error) => toast.error('Failed to update status'),
+  });
+
+  // --- NEW DELETE MUTATION ---
+  const deleteMutation = useMutation({
+    mutationFn: deleteSchool,
+    onSuccess: () => {
+      toast.success('School has been permanently deleted');
+      queryClient.invalidateQueries(['schools']);
+      setDeletingSchool(null);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to delete school');
+    },
   });
 
   const getStatusColor = (status) => {
@@ -88,9 +103,18 @@ const DevSchools = () => {
                     </Button>
                     <Button
                       onClick={() => setTogglingSchool(school)}
-                      className={`w-auto text-sm py-1 ${school.subscriptionStatus === 'Canceled' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+                      className={`w-auto text-sm py-1 ${school.subscriptionStatus === 'Canceled' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-600 hover:bg-yellow-700'}`}
+                      title={school.subscriptionStatus === 'Canceled' ? 'Activate' : 'Suspend'}
                     >
                       {school.subscriptionStatus === 'Canceled' ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
+                    </Button>
+                    {/* --- NEW DELETE BUTTON --- */}
+                    <Button
+                      onClick={() => setDeletingSchool(school)}
+                      className="w-auto text-sm py-1 bg-red-600 hover:bg-red-700"
+                      title="Delete School"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </td>
                 </tr>
@@ -116,6 +140,18 @@ const DevSchools = () => {
           title={togglingSchool.subscriptionStatus === 'Active' ? 'Suspend School' : 'Activate School'}
           message={`Are you sure you want to ${togglingSchool.subscriptionStatus === 'Active' ? 'suspend' : 'activate'} "${togglingSchool.name}"?`}
           isLoading={toggleMutation.isLoading}
+        />
+      )}
+      
+      {/* --- NEW DELETE MODAL --- */}
+      {deletingSchool && (
+        <ConfirmationModal
+          isOpen={!!deletingSchool}
+          onClose={() => setDeletingSchool(null)}
+          onConfirm={() => deleteMutation.mutate(deletingSchool._id)}
+          title="DELETE SCHOOL"
+          message={`This is permanent and cannot be undone. Are you sure you want to delete "${deletingSchool.name}" and all its users, books, and data?`}
+          isLoading={deleteMutation.isLoading}
         />
       )}
     </div>

@@ -9,13 +9,14 @@ import {
   updateStudent,
   deleteStudent,
   linkParentToStudent,
-  assignClassToStudent, // <-- IMPORT
+  assignClassToStudent,
 } from '../controllers/studentController.js';
 import {
   protect,
   isSchoolAdmin,
   isSchoolStaff,
 } from '../middleware/authMiddleware.js';
+import { checkStudentLimit } from '../middleware/limitMiddleware.js'; // <-- 1. IMPORT
 
 // All routes are protected and for school staff
 router.use(protect, isSchoolStaff);
@@ -23,7 +24,9 @@ router.use(protect, isSchoolStaff);
 router.route('/').get(getStudents);
 
 // Admin-only routes
-router.route('/').post(isSchoolAdmin, addStudent);
+router
+  .route('/')
+  .post(isSchoolAdmin, checkStudentLimit, addStudent); // <-- 2. ADD MIDDLEWARE
 
 router
   .route('/:id')
@@ -32,8 +35,6 @@ router
   .delete(isSchoolAdmin, deleteStudent);
 
 router.route('/:id/link-parent').put(isSchoolAdmin, linkParentToStudent);
-
-// --- NEW ROUTE ---
 router.route('/:id/assign-class').put(isSchoolAdmin, assignClassToStudent);
 
 export default router;
