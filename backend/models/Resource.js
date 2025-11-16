@@ -21,15 +21,13 @@ const resourceSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    // --- NEW FIELD ---
     originalFilename: {
       type: String,
       required: true,
     },
-    // --- END NEW FIELD ---
     resourceType: {
       type: String,
-      enum: ['E-book', 'Past Paper', 'Notes', 'Syllabus'],
+      enum: ['E-book', 'Past Paper', 'Notes', 'Syllabus', 'Global'], // Added 'Global'
       required: true,
     },
     subject: {
@@ -43,7 +41,7 @@ const resourceSchema = new mongoose.Schema(
     school: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'School',
-      required: true,
+      required: false, // <-- THIS IS THE FIX (was true)
     },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,

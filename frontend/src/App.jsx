@@ -47,7 +47,9 @@ import AdminSupport from './pages/AdminSupport.jsx';
 import TicketDetails from './pages/TicketDetails.jsx';
 import ManageTimetables from './pages/ManageTimetables.jsx';
 import StudentTimetable from './pages/StudentTimetable.jsx';
-import QuizHistory from './pages/QuizHistory.jsx'; // <-- IMPORT REAL
+import QuizHistory from './pages/QuizHistory.jsx';
+import GlobalUsers from './pages/GlobalUsers.jsx';
+import GlobalResources from './pages/GlobalResources.jsx';
 
 // Placeholders
 const NotFound = () => <div className="flex items-center justify-center h-screen"><h1 className="text-4xl font-bold">404 - Page Not Found</h1></div>;
@@ -63,6 +65,8 @@ const AppRoutes = () => {
         <Route element={<DashboardLayout />}>
           <Route path="/" element={<DevDashboard />} />
           <Route path="/schools" element={<DevSchools />} />
+          <Route path="/dev/users" element={<GlobalUsers />} />
+          <Route path="/dev/resources" element={<GlobalResources />} />
           <Route path="/plans" element={<Plans />} />
           <Route path="/dev/announcements" element={<GlobalAnnouncements />} />
           <Route path="/dev/support" element={<SupportTickets />} />
@@ -155,7 +159,7 @@ const AppRoutes = () => {
           <Route path="/manual-quiz" element={<ManualQuizList />} />
           <Route path="/manual-quiz/:id" element={<TakeQuiz />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/quiz-history" element={<QuizHistory />} /> {/* <-- USE REAL */}
+          <Route path="/quiz-history" element={<QuizHistory />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Route>
@@ -185,11 +189,16 @@ const AppRoutes = () => {
 function App() {
   return (
     <Routes>
+      {/* Public Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register-developer" element={<RegisterDeveloperPage />} />
+
+      {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/*" element={<AppRoutes />} />
       </Route>
+
+      {/* Catch-all 404 Route */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

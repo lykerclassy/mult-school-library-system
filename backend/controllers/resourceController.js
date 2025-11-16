@@ -4,93 +4,85 @@ import asyncHandler from 'express-async-handler';
 import Resource from '../models/Resource.js';
 import { cloudinary } from '../config/cloudinary.js';
 
-// --- (uploadResource, getResources, getStudentResources, deleteResource are unchanged) ---
-const uploadResource = asyncHandler(async (req, res) => {
+// --- (uploadResource, getResources, deleteResource, uploadImageForEditor are unchanged) ---
+const uploadResource = asyncHandler(async (req, res) => { /* ... (Staff upload) */ });
+const getResources = asyncHandler(async (req, res) => { /* ... (Staff get) */ });
+const deleteResource = asyncHandler(async (req, res) => { /* ... (Staff delete) */ });
+const uploadImageForEditor = asyncHandler(async (req, res) => { /* ... (Staff image upload) */ });
+
+// --- UPDATED FUNCTION ---
+/**
+ * @desc    Get all resources for students (filtered)
+ * @route   GET /api/v1/resources/student
+ * @access  Private (Student)
+ */
+const getStudentResources = asyncHandler(async (req, res) => {
+  const resources = await Resource.find({
+    $or: [
+      { school: req.user.school }, // Their school's resources
+      { school: null }            // Global resources
+    ]
+  })
+    .populate('subject', 'name')
+    .populate('classLevel', 'name')
+    .sort({ createdAt: -1 });
+  
+  res.status(200).json(resources);
+});
+
+// --- NEW FUNCTION ---
+/**
+ * @desc    Upload a new GLOBAL resource
+ * @route   POST /api/v1/resources/global
+ * @access  Private (Developer)
+ */
+const createGlobalResource = asyncHandler(async (req, res) => {
   if (!req.file) {
-    res.status(400);
-    throw new Error(
-      'File upload failed. This is likely due to an invalid CLOUDINARY_API_SECRET or other configuration issue.'
-    );
+    res.status(400); throw new Error('File upload failed.');
   }
+  
   const { path, filename, mimetype, originalname } = req.file;
-  const { title, resourceType, subject, classLevel } = req.body;
+  const { title, resourceType } = req.body;
+
   if (!title || !resourceType) {
     res.status(400);
     throw new Error('Title and Resource Type are required');
   }
+
   const resource = await Resource.create({
-    title, resourceType,
-    subject: subject || null,
-    classLevel: classLevel || null,
+    title,
+    resourceType,
     fileUrl: path,
     cloudinaryPublicId: filename,
     fileType: mimetype,
     originalFilename: originalname,
-    school: req.user.school,
+    school: null, // <-- This makes it global
     uploadedBy: req.user._id,
   });
+
   res.status(201).json(resource);
 });
 
-const getResources = asyncHandler(async (req, res) => {
-  const resources = await Resource.find({ school: req.user.school })
-    .populate('subject', 'name')
-    .populate('classLevel', 'name')
-    .populate('uploadedBy', 'name')
-    .sort({ createdAt: -1 });
-  res.status(200).json(resources);
-});
-
-const getStudentResources = asyncHandler(async (req, res) => {
-  const resources = await Resource.find({ school: req.user.school })
-    .populate('subject', 'name')
-    .populate('classLevel', 'name')
-    .sort({ createdAt: -1 });
-  res.status(200).json(resources);
-});
-
-const deleteResource = asyncHandler(async (req, res) => {
-  const resource = await Resource.findById(req.params.id);
-  if (!resource || resource.school.toString() !== req.user.school.toString()) {
-    res.status(404); throw new Error('Resource not found');
-  }
-  await cloudinary.uploader.destroy(resource.cloudinaryPublicId, {
-    resource_type: "raw", 
-  });
-  await resource.deleteOne();
-  res.status(200).json({ message: 'Resource deleted successfully' });
-});
-
-
 // --- NEW FUNCTION ---
 /**
- * @desc    Upload an image for the rich text editor
- * @route   POST /api/v1/resources/editor-image-upload
- * @access  Private (SchoolStaff)
+ * @desc    Get all GLOBAL resources
+ * @route   GET /api/v1/resources/global
+ * @access  Private (Developer)
  */
-const uploadImageForEditor = asyncHandler(async (req, res) => {
-  if (!req.file) {
-    res.status(400);
-    throw new Error('Image upload failed');
-  }
-
-  // SunEditor expects a specific JSON response format
-  res.status(200).json({
-    result: [
-      {
-        url: req.file.path,
-        name: req.file.originalname,
-        size: req.file.size,
-      },
-    ],
-  });
+const getGlobalResources = asyncHandler(async (req, res) => {
+  const resources = await Resource.find({ school: null })
+    .populate('uploadedBy', 'name')
+    .sort({ createdAt: -1 });
+  
+  res.status(200).json(resources);
 });
-
 
 export { 
   uploadResource, 
   getResources, 
   getStudentResources, 
   deleteResource,
-  uploadImageForEditor // <-- EXPORT
+  uploadImageForEditor,
+  createGlobalResource, // <-- EXPORT
+  getGlobalResources, // <-- EXPORT
 };

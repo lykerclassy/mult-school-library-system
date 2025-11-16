@@ -2,6 +2,7 @@
 
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import mongoosePaginate from 'mongoose-paginate-v2'; // <-- 1. IMPORT
 
 const userSchema = new mongoose.Schema(
   {
@@ -26,7 +27,6 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      // --- UPDATED ENUM ---
       enum: ['Developer', 'SchoolAdmin', 'Librarian', 'Teacher', 'Student', 'Parent'],
       required: true,
     },
@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving
+// (Middleware and methods are unchanged)
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     return next();
@@ -56,11 +56,11 @@ userSchema.pre('save', async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
-
-// Method to compare passwords
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+userSchema.plugin(mongoosePaginate); // <-- 2. APPLY PLUGIN
 
 const User = mongoose.model('User', userSchema);
 export default User;
