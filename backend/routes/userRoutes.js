@@ -8,7 +8,7 @@ import {
   updateUserProfile,
   deleteStaff,
   createParent,
-  getParents, // <-- IMPORT
+  getParents, // <-- Make sure this is imported
 } from '../controllers/userController.js';
 import { protect, isSchoolAdmin } from '../middleware/authMiddleware.js';
 
@@ -25,8 +25,8 @@ router.route('/staff')
 router.route('/staff/:id')
   .delete(deleteStaff);
 
-// --- NEW/UPDATED PARENT ROUTES ---
+// --- Parent Routes ---
 router.route('/parent').post(createParent);
-router.route('/parents').get(getParents); // <-- ADDED
+router.route('/parents').get(getParents); // <-- Make sure this route exists
 
 export default router;

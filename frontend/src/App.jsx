@@ -45,11 +45,11 @@ import GlobalAnnouncements from './pages/GlobalAnnouncements.jsx';
 import SupportTickets from './pages/SupportTickets.jsx';
 import AdminSupport from './pages/AdminSupport.jsx';
 import TicketDetails from './pages/TicketDetails.jsx';
-import ManageTimetables from './pages/ManageTimetables.jsx'; // <-- IMPORT
-import StudentTimetable from './pages/StudentTimetable.jsx'; // <-- IMPORT
+import ManageTimetables from './pages/ManageTimetables.jsx';
+import StudentTimetable from './pages/StudentTimetable.jsx';
+import QuizHistory from './pages/QuizHistory.jsx'; // <-- IMPORT REAL
 
 // Placeholders
-const QuizHistory = () => <div>Quiz History Page</div>;
 const NotFound = () => <div className="flex items-center justify-center h-screen"><h1 className="text-4xl font-bold">404 - Page Not Found</h1></div>;
 
 // --- Role-Based Routing ---
@@ -81,7 +81,7 @@ const AppRoutes = () => {
         <Route element={<DashboardLayout />}>
           <Route path="/" element={<SchoolOverview />} />
           <Route path="/announcements" element={<Announcements />} />
-          <Route path="/admin/timetables" element={<ManageTimetables />} /> {/* <-- ADDED */}
+          <Route path="/admin/timetables" element={<ManageTimetables />} />
           <Route path="/transactions" element={<LibrarianDashboard />} />
           <Route path="/books" element={<Books />} />
           <Route path="/resources" element={<Resources />} />
@@ -126,7 +126,7 @@ const AppRoutes = () => {
         <Route element={<DashboardLayout />}>
           <Route path="/" element={<TeacherDashboard />} />
           <Route path="/announcements" element={<Announcements />} />
-          <Route path="/my-timetable" element={<StudentTimetable />} /> {/* <-- ADDED */}
+          <Route path="/my-timetable" element={<StudentTimetable />} />
           <Route path="/teacher/assignments" element={<TeacherAssignments />} />
           <Route path="/teacher/assignment/:id/submissions" element={<ViewSubmissions />} />
           <Route path="/resources" element={<Resources />} />
@@ -146,7 +146,7 @@ const AppRoutes = () => {
         <Route element={<DashboardLayout />}>
           <Route path="/" element={<StudentPortal />} />
           <Route path="/announcements" element={<Announcements />} />
-          <Route path="/my-timetable" element={<StudentTimetable />} /> {/* <-- ADDED */}
+          <Route path="/my-timetable" element={<StudentTimetable />} />
           <Route path="/my-books" element={<MyBorrowed />} />
           <Route path="/resources" element={<StudentResources />} />
           <Route path="/student/assignments" element={<StudentAssignments />} />
@@ -155,7 +155,7 @@ const AppRoutes = () => {
           <Route path="/manual-quiz" element={<ManualQuizList />} />
           <Route path="/manual-quiz/:id" element={<TakeQuiz />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/quiz-history" element={<QuizHistory />} />
+          <Route path="/quiz-history" element={<QuizHistory />} /> {/* <-- USE REAL */}
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Route>

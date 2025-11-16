@@ -2,11 +2,18 @@
 
 import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
+import School from '../models/School.js';
+import { sendEmail } from '../services/emailService.js';
 
-// --- (createStaff function is unchanged) ---
+/**
+ * @desc    Create a new staff member (Librarian or Teacher)
+ * @route   POST /api/v1/users/staff
+ * @access  Private (SchoolAdmin)
+ */
 const createStaff = asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
   const schoolId = req.user.school;
+
   if (!name || !email || !password || !role) {
     res.status(400);
     throw new Error('Please provide all required fields');
@@ -27,7 +34,22 @@ const createStaff = asyncHandler(async (req, res) => {
     role,
     school: schoolId,
   });
+
   if (user) {
+    try {
+      const school = await School.findById(schoolId).select('name');
+      const emailHtml = `
+        <h1>Welcome to ${school.name}'s Staff Portal!</h1>
+        <p>Hello ${name}, an account has been created for you with the role of ${role}.</p>
+        <p>You can now log in using the following credentials:</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Password:</strong> ${password}</p>
+        <p>Please log in and change your password in the Settings page.</p>
+      `;
+      await sendEmail(email, "Your New Staff Account", emailHtml);
+    } catch (emailError) {
+      console.error("Failed to send welcome email to staff:", emailError);
+    }
     res.status(201).json({
       _id: user._id,
       name: user.name,
@@ -40,7 +62,11 @@ const createStaff = asyncHandler(async (req, res) => {
   }
 });
 
-// --- (getStaff function is unchanged) ---
+/**
+ * @desc    Get all staff for the school
+ * @route   GET /api/v1/users/staff
+ * @access  Private (SchoolAdmin)
+ */
 const getStaff = asyncHandler(async (req, res) => {
   const staff = await User.find({
     school: req.user.school,
@@ -51,7 +77,11 @@ const getStaff = asyncHandler(async (req, res) => {
   res.status(200).json(staff);
 });
 
-// --- (updateUserProfile function is unchanged) ---
+/**
+ * @desc    Update a user's own profile
+ * @route   PUT /api/v1/users/profile
+ * @access  Private (All users)
+ */
 const updateUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (!user) {
@@ -72,7 +102,11 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   });
 });
 
-// --- (deleteStaff function is unchanged) ---
+/**
+ * @desc    Delete a staff member
+ * @route   DELETE /api/v1/users/staff/:id
+ * @access  Private (SchoolAdmin)
+ */
 const deleteStaff = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) {
@@ -94,7 +128,11 @@ const deleteStaff = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'User deleted successfully' });
 });
 
-// --- (createParent function is unchanged) ---
+/**
+ * @desc    Create a new parent
+ * @route   POST /api/v1/users/parent
+ * @access  Private (SchoolAdmin)
+ */
 const createParent = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
@@ -113,6 +151,22 @@ const createParent = asyncHandler(async (req, res) => {
     role: 'Parent',
     school: req.user.school,
   });
+  if (parent) {
+    try {
+      const school = await School.findById(req.user.school).select('name');
+      const emailHtml = `
+        <h1>Welcome to ${school.name}'s Parent Portal!</h1>
+        <p>Hello ${name}, an account has been created for you.</p>
+        <p>You can now log in using the following credentials:</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Password:</strong> ${password}</p>
+        <p>Please log in and change your password in the Settings page.</p>
+      `;
+      await sendEmail(email, "Your New Parent Account", emailHtml);
+    } catch (emailError) {
+      console.error("Failed to send welcome email to parent:", emailError);
+    }
+  }
   res.status(201).json({
     _id: parent._id,
     name: parent.name,
@@ -120,7 +174,6 @@ const createParent = asyncHandler(async (req, res) => {
   });
 });
 
-// --- NEW FUNCTION ---
 /**
  * @desc    Get all parents for the school
  * @route   GET /api/v1/users/parents
@@ -137,11 +190,12 @@ const getParents = asyncHandler(async (req, res) => {
   res.status(200).json(parents);
 });
 
+// --- This export block must be 100% correct ---
 export {
   createStaff,
   getStaff,
   updateUserProfile,
   deleteStaff,
   createParent,
-  getParents, // <-- EXPORT
+  getParents,
 };

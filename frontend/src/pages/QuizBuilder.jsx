@@ -12,11 +12,11 @@ import SunEditor from 'suneditor-react';
 import 'suneditor/dist/css/suneditor.min.css'; 
 import katex from 'katex';
 
-// --- (API Functions are unchanged) ---
+// --- API Functions ---
 const fetchSubjects = async () => (await apiClient.get('/subjects')).data;
 const fetchClassLevels = async () => (await apiClient.get('/classes')).data;
 
-// --- (Editor Options are unchanged) ---
+// --- Editor Options ---
 const editorOptions = {
   katex: katex,
   buttonList: [
@@ -27,16 +27,21 @@ const editorOptions = {
   ],
 };
 
-// --- (Custom Image Handler is unchanged) ---
+// --- Custom Image Upload Handler ---
 const handleImageUpload = (files, info, uploadHandler) => {
-  if (!files || !files.length) { return undefined; }
+  if (!files || !files.length) {
+    return undefined;
+  }
   const file = files[0];
   const formData = new FormData();
   formData.append('file', file);
+
   apiClient.post('/resources/editor-image-upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
-  .then(response => { uploadHandler(response.data); })
+  .then(response => {
+    uploadHandler(response.data);
+  })
   .catch(error => {
     const message = error.response?.data?.message || 'Image upload failed';
     toast.error(message);
@@ -50,10 +55,9 @@ const handleImageUpload = (files, info, uploadHandler) => {
 const QuestionForm = ({ question, index, updateQuestion, removeQuestion }) => {
   
   // --- THIS IS THE FIX ---
-  // We send *partial* updates to the parent, not the whole 'question' object
-  
+  // The functions MUST be declared with 'const'
   const handleQuestionChange = (content) => {
-    updateQuestion(index, { questionText: content }); // Send only the change
+    updateQuestion(index, { questionText: content });
   };
   
   const handleOptionChange = (optIndex, field, value) => {
@@ -63,12 +67,12 @@ const QuestionForm = ({ question, index, updateQuestion, removeQuestion }) => {
     } else {
       newOptions[optIndex][field] = value;
     }
-    updateQuestion(index, { options: newOptions }); // Send only the change
+    updateQuestion(index, { options: newOptions });
   };
-  // --- END OF FIX ---
 
   const addOption = () => {
     updateQuestion(index, {
+      ...question,
       options: [...question.options, { text: '', isCorrect: false }],
     });
   };
@@ -77,6 +81,7 @@ const QuestionForm = ({ question, index, updateQuestion, removeQuestion }) => {
     const newOptions = question.options.filter((_, i) => i !== optIndex);
     updateQuestion(index, { options: newOptions });
   };
+  // --- END OF FIX ---
 
   return (
     <div className="bg-gray-50 p-4 rounded-lg border space-y-3">
@@ -130,7 +135,7 @@ const QuestionForm = ({ question, index, updateQuestion, removeQuestion }) => {
   );
 };
 
-// --- Main Quiz Builder Page (FIXED) ---
+// --- Main Quiz Builder Page ---
 const QuizBuilder = () => {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
@@ -146,9 +151,6 @@ const QuizBuilder = () => {
       { questionText: '', options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }] },
     ]);
   };
-  
-  // --- THIS IS THE FIX ---
-  // This function now merges the partial update, not overwrites
   const updateQuestion = (index, partialUpdate) => {
     setQuestions(currentQuestions => 
       currentQuestions.map((q, i) => 
@@ -156,8 +158,6 @@ const QuizBuilder = () => {
       )
     );
   };
-  // --- END OF FIX ---
-
   const removeQuestion = (index) => {
     setQuestions(questions.filter((_, i) => i !== index));
   };

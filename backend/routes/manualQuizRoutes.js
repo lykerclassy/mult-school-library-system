@@ -9,6 +9,7 @@ import {
   getQuizForStudent,
   submitQuizAttempt,
   getLeaderboard,
+  getMyQuizAttempts, // <-- IMPORT
 } from '../controllers/manualQuizController.js';
 import { protect, isSchoolStaff } from '../middleware/authMiddleware.js';
 
@@ -17,6 +18,7 @@ router.route('/student').get(protect, getQuizzesForStudent);
 router.route('/student/:id').get(protect, getQuizForStudent);
 router.route('/:id/submit').post(protect, submitQuizAttempt);
 router.route('/leaderboard').get(protect, getLeaderboard);
+router.route('/my-history').get(protect, getMyQuizAttempts); // <-- ADD THIS
 
 // --- Staff Only Routes ---
 router.route('/')

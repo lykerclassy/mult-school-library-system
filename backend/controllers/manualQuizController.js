@@ -4,6 +4,7 @@ import asyncHandler from 'express-async-handler';
 import ManualQuiz from '../models/ManualQuiz.js';
 import QuizAttempt from '../models/QuizAttempt.js';
 import Student from '../models/Student.js';
+import mongoose from 'mongoose'; // Import Mongoose
 
 /**
  * @desc    Create a new manual quiz
@@ -51,7 +52,7 @@ const getQuizzesForStaff = asyncHandler(async (req, res) => {
  */
 const getQuizzesForStudent = asyncHandler(async (req, res) => {
   const quizzes = await ManualQuiz.find({ school: req.user.school })
-    .select('-questions.options.isCorrect') // Hide correct answers
+    .select('-questions.options.isCorrect')
     .populate('subject', 'name')
     .populate('classLevel', 'name')
     .sort({ createdAt: -1 });
@@ -66,7 +67,7 @@ const getQuizzesForStudent = asyncHandler(async (req, res) => {
  */
 const getQuizForStudent = asyncHandler(async (req, res) => {
   const quiz = await ManualQuiz.findById(req.params.id)
-    .select('-questions.options.isCorrect'); // Hide correct answers
+    .select('-questions.options.isCorrect');
 
   if (!quiz || quiz.school.toString() !== req.user.school.toString()) {
     res.status(404);
@@ -82,25 +83,22 @@ const getQuizForStudent = asyncHandler(async (req, res) => {
  * @access  Private (Student)
  */
 const submitQuizAttempt = asyncHandler(async (req, res) => {
-  const { answers } = req.body; // Expects an object like: { "questionId": "optionId" }
+  const { answers } = req.body;
   const quizId = req.params.id;
   const userId = req.user._id;
 
-  // 1. Get the full quiz with correct answers
   const quiz = await ManualQuiz.findById(quizId);
   if (!quiz) {
     res.status(404);
     throw new Error('Quiz not found');
   }
 
-  // 2. Find the student profile
   const student = await Student.findOne({ userAccount: userId });
   if (!student) {
     res.status(404);
     throw new Error('Student profile not found');
   }
 
-  // 3. Grade the quiz
   let score = 0;
   let totalQuestions = quiz.questions.length;
 
@@ -114,7 +112,6 @@ const submitQuizAttempt = asyncHandler(async (req, res) => {
     }
   }
 
-  // 4. Save the attempt
   const attempt = await QuizAttempt.create({
     quiz: quizId,
     student: student._id,
@@ -136,9 +133,16 @@ const submitQuizAttempt = asyncHandler(async (req, res) => {
  * @access  Private (Student/Staff)
  */
 const getLeaderboard = asyncHandler(async (req, res) => {
-  // Aggregate all attempts by student and sum their scores
+  
+  // Fix: Developers don't have a school, so return an empty array for them.
+  if (req.user.role === 'Developer') {
+    return res.status(200).json([]);
+  }
+
+  const schoolId = new mongoose.Types.ObjectId(req.user.school);
+
   const leaderboard = await QuizAttempt.aggregate([
-    { $match: { school: req.user.school } },
+    { $match: { school: schoolId } },
     {
       $group: {
         _id: '$student',
@@ -169,6 +173,33 @@ const getLeaderboard = asyncHandler(async (req, res) => {
   res.status(200).json(leaderboard);
 });
 
+/**
+ * @desc    Get all quiz attempts for the logged-in student
+ * @route   GET /api/v1/manual-quiz/my-history
+ * @access  Private (Student)
+ */
+const getMyQuizAttempts = asyncHandler(async (req, res) => {
+  const student = await Student.findOne({ userAccount: req.user._id });
+  if (!student) {
+    res.status(404);
+    throw new Error('Student profile not found');
+  }
+
+  const attempts = await QuizAttempt.find({ student: student._id })
+    .populate({
+      path: 'quiz',
+      select: 'title subject',
+      populate: {
+        path: 'subject',
+        select: 'name',
+      },
+    })
+    .sort({ createdAt: -1 });
+
+  res.status(200).json(attempts);
+});
+
+
 export {
   createManualQuiz,
   getQuizzesForStaff,
@@ -176,4 +207,5 @@ export {
   getQuizForStudent,
   submitQuizAttempt,
   getLeaderboard,
+  getMyQuizAttempts,
 };

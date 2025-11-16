@@ -49,14 +49,14 @@ const isSchoolAdmin = (req, res, next) => {
   }
 };
 
-// --- THIS IS THE CORRECT, UPDATED FUNCTION ---
+// --- THIS IS THE FIX ---
 // Middleware to check for any school staff (Admin, Librarian, OR Teacher)
 const isSchoolStaff = (req, res, next) => {
   if (
     req.user &&
     (req.user.role === 'SchoolAdmin' ||
      req.user.role === 'Librarian' ||
-     req.user.role === 'Teacher') // <-- This line is the fix
+     req.user.role === 'Teacher') // <-- This line was missing
   ) {
     next();
   } else {

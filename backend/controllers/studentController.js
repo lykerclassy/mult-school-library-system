@@ -4,11 +4,17 @@ import asyncHandler from 'express-async-handler';
 import Student from '../models/Student.js';
 import User from '../models/User.js';
 import School from '../models/School.js';
+import { sendEmail } from '../services/emailService.js';
 
-// --- (addStudent function is unchanged) ---
+/**
+ * @desc    Add a new student
+ * @route   POST /api/v1/students
+ * @access  Private (SchoolAdmin)
+ */
 const addStudent = asyncHandler(async (req, res) => {
   const { name, admissionNumber } = req.body;
   const schoolId = req.user.school;
+
   if (!name || !admissionNumber) {
     res.status(400);
     throw new Error('Please provide name and admission number');
@@ -19,11 +25,13 @@ const addStudent = asyncHandler(async (req, res) => {
       'Admission Number must be at least 6 characters long (it is used as the default password).'
     );
   }
+
   const school = await School.findById(schoolId);
   if (!school) {
     res.status(404);
     throw new Error('School not found');
   }
+
   const studentExists = await Student.findOne({
     admissionNumber,
     school: schoolId,
@@ -32,11 +40,13 @@ const addStudent = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Student with this admission number already exists');
   }
+
   const schoolNameHandle = school.name
     .toLowerCase()
     .replace(/[^a-z0-9]/gi, '');
   const studentEmail = `${admissionNumber}@${schoolNameHandle}.com`;
   const defaultPassword = admissionNumber;
+
   const userExists = await User.findOne({ email: studentEmail });
   if (userExists) {
     res.status(400);
@@ -44,6 +54,7 @@ const addStudent = asyncHandler(async (req, res) => {
       'A user account for this student admission number already exists.'
     );
   }
+
   const studentUser = new User({
     name,
     email: studentEmail,
@@ -51,15 +62,32 @@ const addStudent = asyncHandler(async (req, res) => {
     role: 'Student',
     school: schoolId,
   });
+
   const student = new Student({
     name,
     admissionNumber,
     school: schoolId,
     userAccount: studentUser._id,
   });
+
   try {
     await studentUser.save();
     const createdStudent = await student.save();
+
+    try {
+      const emailHtml = `
+        <h1>Welcome to ${school.name}'s Library Portal!</h1>
+        <p>Hello ${name}, an account has been created for you.</p>
+        <p>You can now log in using the following credentials:</p>
+        <p><strong>Email:</strong> ${studentEmail}</p>
+        <p><strong>Password:</strong> ${defaultPassword}</p>
+        <p>Please log in and change your password in the Settings page.</p>
+      `;
+      await sendEmail(studentEmail, "Your New Library Account", emailHtml);
+    } catch (emailError) {
+      console.error("Failed to send welcome email to student:", emailError);
+    }
+
     res.status(201).json(createdStudent);
   } catch (error) {
     await User.deleteOne({ _id: studentUser._id });
@@ -74,7 +102,11 @@ const addStudent = asyncHandler(async (req, res) => {
   }
 });
 
-// --- UPDATED getStudents function ---
+/**
+ * @desc    Get all students for the school (paginated)
+ * @route   GET /api/v1/students
+ * @access  Private (SchoolStaff)
+ */
 const getStudents = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search = '' } = req.query;
   const query = { school: req.user.school };
@@ -91,14 +123,18 @@ const getStudents = asyncHandler(async (req, res) => {
     populate: [
         { path: 'userAccount', select: 'email' },
         { path: 'parent', select: 'name email' },
-        { path: 'classLevel', select: 'name' } // <-- Populate class
+        { path: 'classLevel', select: 'name' }
     ],
   };
   const paginatedResults = await Student.paginate(query, options);
   res.status(200).json(paginatedResults);
 });
 
-// --- (getStudentById, updateStudent, deleteStudent are unchanged) ---
+/**
+ * @desc    Get student by ID
+ * @route   GET /api/v1/students/:id
+ * @access  Private (SchoolStaff)
+ */
 const getStudentById = asyncHandler(async (req, res) => {
   const student = await Student.findById(req.params.id);
   if (!student || student.school.toString() !== req.user.school.toString()) {
@@ -107,6 +143,12 @@ const getStudentById = asyncHandler(async (req, res) => {
   }
   res.status(200).json(student);
 });
+
+/**
+ * @desc    Update a student
+ * @route   PUT /api/v1/students/:id
+ * @access  Private (SchoolAdmin)
+ */
 const updateStudent = asyncHandler(async (req, res) => {
   const { name, admissionNumber } = req.body;
   const student = await Student.findById(req.params.id).populate('userAccount');
@@ -153,6 +195,12 @@ const updateStudent = asyncHandler(async (req, res) => {
   const updatedStudent = await student.save();
   res.status(200).json(updatedStudent);
 });
+
+/**
+ * @desc    Delete a student
+ * @route   DELETE /api/v1/students/:id
+ * @access  Private (SchoolAdmin)
+ */
 const deleteStudent = asyncHandler(async (req, res) => {
   const student = await Student.findById(req.params.id);
   if (!student || student.school.toString() !== req.user.school.toString()) {
@@ -166,7 +214,11 @@ const deleteStudent = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Student removed successfully' });
 });
 
-// --- (linkParentToStudent is unchanged) ---
+/**
+ * @desc    Link a parent to a student
+ * @route   PUT /api/v1/students/:id/link-parent
+ * @access  Private (SchoolAdmin)
+ */
 const linkParentToStudent = asyncHandler(async (req, res) => {
   const { parentId } = req.body;
   const studentId = req.params.id;
@@ -189,7 +241,6 @@ const linkParentToStudent = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Parent linked successfully' });
 });
 
-// --- NEW FUNCTION ---
 /**
  * @desc    Assign a class to a student
  * @route   PUT /api/v1/students/:id/assign-class
@@ -212,6 +263,8 @@ const assignClassToStudent = asyncHandler(async (req, res) => {
 });
 
 
+// --- THIS IS THE FIX ---
+// The export block was missing 'assignClassToStudent'
 export {
   addStudent,
   getStudents,
@@ -219,5 +272,5 @@ export {
   updateStudent,
   deleteStudent,
   linkParentToStudent,
-  assignClassToStudent, // <-- EXPORT
+  assignClassToStudent,
 };
