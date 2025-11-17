@@ -11,6 +11,12 @@ const protect = asyncHandler(async (req, res, next) => {
 
   if (token) {
     try {
+      // --- DEBUGGING: ADD THIS ---
+      console.log('--- 2. VERIFYING TOKEN ---');
+      console.log('SECRET USED TO VERIFY:', process.env.JWT_SECRET);
+      console.log('TOKEN BEING VERIFIED:', token); // <-- NEW LINE
+      // --- END DEBUGGING ---
+
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = await User.findById(decoded.userId).select('-password');
       if (!req.user) {
@@ -19,7 +25,7 @@ const protect = asyncHandler(async (req, res, next) => {
       }
       next();
     } catch (error) {
-      console.error(error);
+      console.error(error); // This will log the error
       res.status(401);
       throw new Error('Not authorized, token failed');
     }
@@ -49,14 +55,13 @@ const isSchoolAdmin = (req, res, next) => {
   }
 };
 
-// --- THIS IS THE FIX ---
 // Middleware to check for any school staff (Admin, Librarian, OR Teacher)
 const isSchoolStaff = (req, res, next) => {
   if (
     req.user &&
     (req.user.role === 'SchoolAdmin' ||
-     req.user.role === 'Librarian' ||
-     req.user.role === 'Teacher') // <-- This line was missing
+      req.user.role === 'Librarian' ||
+      req.user.role === 'Teacher')
   ) {
     next();
   } else {
@@ -64,6 +69,5 @@ const isSchoolStaff = (req, res, next) => {
     throw new Error('Not authorized. School Staff access only.');
   }
 };
-// --- END OF FIX ---
 
 export { protect, isDeveloper, isSchoolAdmin, isSchoolStaff };

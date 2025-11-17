@@ -2,6 +2,8 @@
 
 import nodemailer from 'nodemailer';
 import { currentConfig } from '../config/globalConfigStore.js';
+import ActivityLog from '../models/ActivityLog.js'; // <-- Needed for logging
+import DeliveryLog from '../models/DeliveryLog.js'; // <-- 1. IMPORT
 
 let transporter;
 
@@ -18,26 +20,21 @@ const initEmailService = () => {
     transporter = nodemailer.createTransport({
       host: currentConfig.smtpHost,
       port: currentConfig.smtpPort,
-      secure: currentConfig.smtpPort === 465, // true for 465, false for others
+      secure: currentConfig.smtpPort === 465,
       auth: {
         user: currentConfig.smtpUser,
         pass: currentConfig.smtpPass,
       },
-      // --- THIS IS THE FIX ---
-      // This tells Node.js to not fail if the certificate name doesn't match
       tls: {
         rejectUnauthorized: false,
       },
-      // --- END OF FIX ---
     });
 
-    // Verify connection configuration
     transporter.verify((error, success) => {
       if (error) {
-        // We will still see the error here, but it won't crash
         console.error('Email Service: Connection error (bypassed)', error.code);
       } else {
-        console.log('Email Service is ready to send messages (insecure mode)');
+        console.log('Email Service is ready to send messages');
       }
     });
   } else {
@@ -57,16 +54,35 @@ const sendEmail = async (to, subject, html) => {
     return;
   }
 
+  // 1. Create a log document before sending
+  const log = await DeliveryLog.create({
+    recipient: to,
+    type: 'EMAIL',
+    subject: subject,
+    status: 'INITIATED',
+    details: 'Attempting to send email.',
+  });
+
   try {
     const info = await transporter.sendMail({
-      from: `"Your Library Platform" <${currentConfig.smtpUser}>`, // Sender address
+      from: `"Your Library Platform" <${currentConfig.smtpUser}>`,
       to: to,
       subject: subject,
       html: html,
     });
 
+    // 2. Update log to SUCCESS
+    log.status = 'SUCCESS';
+    log.details = `Message ID: ${info.messageId} (Server Response: ${info.response})`;
+    await log.save();
+
     console.log('Message sent: %s', info.messageId);
   } catch (error) {
+    // 3. Update log to FAILED
+    log.status = 'FAILED';
+    log.details = `SMTP Error: ${error.message}`;
+    await log.save();
+    
     console.error('Error sending email:', error);
   }
 };

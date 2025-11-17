@@ -1,17 +1,18 @@
 // /frontend/src/components/layout/Header.jsx
 
 import React, { useState, useEffect } from 'react';
-import { useMutation } from '@tanstack/react-query';
+// --- 1. IMPORT useQueryClient ---
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/axios';
 import toast from 'react-hot-toast';
 import { User, LogOut, Menu, Bell, CheckCheck } from 'lucide-react';
 import useSidebarStore from '../../hooks/useSidebar';
-import useNotificationStore from '../../hooks/useNotificationStore'; // <-- IMPORT
+import useNotificationStore from '../../hooks/useNotificationStore';
 import { formatDistanceToNow } from 'date-fns';
 
-// --- Notification Dropdown Component ---
+// --- (NotificationDropdown component is unchanged) ---
 const NotificationDropdown = () => {
   const { notifications, unreadCount, markAllAsRead } = useNotificationStore();
   const [isOpen, setIsOpen] = useState(false);
@@ -33,7 +34,6 @@ const NotificationDropdown = () => {
         )}
       </button>
 
-      {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border z-50">
           <div className="p-4 flex justify-between items-center border-b">
@@ -76,13 +76,15 @@ const NotificationDropdown = () => {
 };
 
 
-// --- Main Header Component ---
+// --- Main Header Component (FIXED) ---
 const Header = () => {
   const { userInfo, logout } = useAuth();
   const navigate = useNavigate();
   const { toggleSidebar } = useSidebarStore();
   
-  // Fetch notifications on load
+  // --- 2. GET THE QUERY CLIENT ---
+  const queryClient = useQueryClient();
+  
   const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
   useEffect(() => {
     if (userInfo) {
@@ -93,7 +95,15 @@ const Header = () => {
   const logoutMutation = useMutation({
     mutationFn: () => apiClient.post('/auth/logout'),
     onSuccess: () => {
-      logout();
+      logout(); // 1. Clear local context state
+      
+      // --- 3. THIS IS THE FIX ---
+      // This tells React Query to completely clear the 'authUser' cache.
+      // The AuthContext will re-run fetchUser, which will fail (no cookie)
+      // and successfully log you out.
+      queryClient.removeQueries({ queryKey: ['authUser'] });
+      // --- END OF FIX ---
+      
       navigate('/login');
       toast.success('Logged out successfully');
     },
@@ -109,24 +119,18 @@ const Header = () => {
   return (
     <header className="h-16 bg-surface shadow-sm flex items-center justify-between px-4 md:px-6">
       <div className="flex items-center">
-        {/* Mobile Menu Button */}
         <button
           onClick={toggleSidebar}
           className="p-2 rounded-md text-gray-600 hover:bg-gray-100 md:hidden mr-2"
         >
           <Menu className="w-6 h-6" />
         </button>
-
         <h1 className="text-xl font-semibold hidden md:block">
           Welcome, {userInfo?.name || 'User'}
         </h1>
       </div>
       <div className="flex items-center space-x-4">
-        {/* --- ADD NOTIFICATION BELL --- */}
         <NotificationDropdown />
-        {/* ----------------------------- */}
-
-        {/* User Logout */}
         <button
           onClick={handleLogout}
           disabled={logoutMutation.isLoading}

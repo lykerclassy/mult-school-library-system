@@ -8,11 +8,12 @@ import connectDB from './config/db.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 import { startCronJobs } from './services/cronJobs.js';
 import { loadConfigFromDB } from './config/globalConfigStore.js';
-import { initEmailService } from './services/emailService.js'; // Import email service
+import { initEmailService } from './services/emailService.js';
+import { initSmsService } from './services/smsService.js';
+import { initIntasend } from './services/intasendService.js'; // <-- 1. IMPORT
 
-// Load .env variables (ONLY for DB, Port, JWT_SECRET)
+// Load .env variables
 dotenv.config();
-
 const port = process.env.PORT || 5000;
 const app = express();
 
@@ -21,8 +22,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(cookieParser());
+app.set('trust proxy', 1);
 
-// --- NEW ASYNC START FUNCTION ---
+// --- ASYNC START FUNCTION ---
 const startServer = async () => {
   try {
     // 1. Connect to MongoDB
@@ -31,15 +33,8 @@ const startServer = async () => {
     // 2. Load the global config from the DB into memory
     await loadConfigFromDB();
 
-    // --- 3. Dynamically import all routes ---
-    // (This MUST happen *after* loadConfigFromDB)
-
-    // --- THIS IS THE FIX ---
-    // We just import cloudinary.js; it will configure itself
-    // We do NOT need to call initCloudinary()
+    // 3. Dynamically import all routes
     await import('./config/cloudinary.js');
-    // --- END OF FIX ---
-
     const authRoutes = (await import('./routes/authRoutes.js')).default;
     const schoolRoutes = (await import('./routes/schoolRoutes.js')).default;
     const studentRoutes = (await import('./routes/studentRoutes.js')).default;
@@ -59,11 +54,15 @@ const startServer = async () => {
     const communicationRoutes = (await import('./routes/communicationRoutes.js')).default;
     const configRoutes = (await import('./routes/configRoutes.js')).default;
     const timetableRoutes = (await import('./routes/timetableRoutes.js')).default;
+    const activityLogRoutes = (await import('./routes/activityLogRoutes.js')).default;
+    const billingRoutes = (await import('./routes/billingRoutes.js')).default; // <-- 2. IMPORT
 
-    // 4. Initialize services that depend on config
+    // 4. Initialize services
     initEmailService();
-    
-    // --- 5. Use Routes ---
+    initSmsService();
+    initIntasend(); // <-- 3. INITIALIZE INTASEND
+
+    // 5. Use Routes
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/schools', schoolRoutes);
     app.use('/api/v1/students', studentRoutes);
@@ -83,15 +82,16 @@ const startServer = async () => {
     app.use('/api/v1/comm', communicationRoutes);
     app.use('/api/v1/config', configRoutes);
     app.use('/api/v1/timetables', timetableRoutes);
-    
-    // --- 6. Error Handling ---
+    app.use('/api/v1/logs', activityLogRoutes);
+    app.use('/api/v1/billing', billingRoutes); // <-- 4. ADD THIS
+
+    // 6. Error Handling
     app.use(notFound);
     app.use(errorHandler);
     
-    // --- 7. Start Server ---
+    // 7. Start Server
     app.listen(port, () => {
       console.log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
-      // 8. Start cron jobs
       startCronJobs();
     });
 

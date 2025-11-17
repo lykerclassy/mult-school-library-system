@@ -7,17 +7,14 @@ import {
   getPlans,
   deletePlan,
 } from '../controllers/planController.js';
-import { protect, isDeveloper } from '../middleware/authMiddleware.js';
+import { protect, isDeveloper, isSchoolAdmin } from '../middleware/authMiddleware.js';
 
-// All routes are for Developer only
+// Allow SchoolAdmins OR Developers to GET plans
+router.route('/').get(protect, getPlans);
+
+// --- Developer Only Routes ---
 router.use(protect, isDeveloper);
-
-router.route('/')
-  .post(createPlan)
-  .get(getPlans);
-
-router.route('/:id')
-  .delete(deletePlan);
-  // We can add PUT for updating plans later
+router.route('/').post(createPlan);
+router.route('/:id').delete(deletePlan);
 
 export default router;

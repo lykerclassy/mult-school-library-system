@@ -1,9 +1,8 @@
-// backend/controllers/authController.js
-
 import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
 import generateToken from '../utils/generateToken.js';
-import School from '../models/School.js'; // We need this again
+import School from '../models/School.js';
+import { logActivity } from '../services/activityLogService.js';
 
 /**
  * @desc    Register the first Developer account
@@ -13,18 +12,21 @@ import School from '../models/School.js'; // We need this again
 const registerDeveloper = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
+  // 1. Check if a developer account already exists
   const developerExists = await User.findOne({ role: 'Developer' });
   if (developerExists) {
-    res.status(403);
+    res.status(403); // Forbidden
     throw new Error('A Developer account already exists.');
   }
 
+  // 2. Check if email is already in use
   const userExists = await User.findOne({ email });
   if (userExists) {
     res.status(400);
     throw new Error('User already exists');
   }
 
+  // 3. Create the new developer user
   const user = await User.create({
     name,
     email,
@@ -33,7 +35,10 @@ const registerDeveloper = asyncHandler(async (req, res) => {
   });
 
   if (user) {
+    // 4. Generate token and set cookie
     generateToken(res, user._id, user.role, user.school);
+
+    // 5. Send back user data (without password)
     res.status(201).json({
       _id: user._id,
       name: user.name,
@@ -63,7 +68,16 @@ const loginUser = asyncHandler(async (req, res) => {
     // 3. Generate token and set cookie
     generateToken(res, user._id, user.role, user.school);
 
-    // 4. Send back user data
+    // 4. Log the login action
+    await logActivity(
+      user._id,
+      user.school, // Will be null for Developer
+      'USER_LOGIN',
+      `User ${user.name} (${user.email}) logged in.`,
+      req.ip
+    );
+
+    // 5. Send back user data
     res.status(200).json({
       _id: user._id,
       name: user.name,
@@ -77,7 +91,6 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 });
 
-// --- NEW FUNCTION ---
 /**
  * @desc    Check a user's email and return associated school
  * @route   POST /api/v1/auth/check-email
@@ -114,7 +127,6 @@ const checkUserByEmail = asyncHandler(async (req, res) => {
     schoolName: schoolName, // Will be null for Developer
   });
 });
-// --- END NEW FUNCTION ---
 
 /**
  * @desc    Logout user / clear cookie
@@ -155,7 +167,7 @@ const getMe = asyncHandler(async (req, res) => {
 export {
   registerDeveloper,
   loginUser,
-  checkUserByEmail, // <-- ADD TO EXPORTS
+  checkUserByEmail,
   logoutUser,
   getMe,
 };

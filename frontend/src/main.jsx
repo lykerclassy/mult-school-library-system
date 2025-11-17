@@ -16,7 +16,7 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
       cacheTime: 1000 * 60 * 30, // 30 minutes
-      refetchOnWindowFocus: false, // Prevents refetching on window focus
+      refetchOnWindowFocus: false,
     },
   },
 });
@@ -24,7 +24,9 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
+      {/* 1. QueryClientProvider MUST be on the OUTSIDE */}
       <QueryClientProvider client={queryClient}>
+        {/* 2. AuthProvider goes INSIDE */}
         <AuthProvider>
           <App />
           <Toaster position="top-right" reverseOrder={false} />

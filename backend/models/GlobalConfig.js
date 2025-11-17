@@ -3,7 +3,6 @@
 import mongoose from 'mongoose';
 
 const configSchema = new mongoose.Schema({
-  // We'll use a single, known ID to always find this document
   configId: {
     type: String,
     default: 'main_config',
@@ -29,7 +28,13 @@ const configSchema = new mongoose.Schema({
   smtpUser: { type: String },
   smtpPass: { type: String },
   
-  // This will link to the developer who set these keys
+  // SMS Gateway
+  smsUsername: { type: String },
+  smsApiKey: { type: String },
+  // --- NEW FIELD ---
+  smsSenderId: { type: String }, // e.g., "MySaaS" or "20123"
+  // --- END NEW FIELD ---
+  
   lastUpdatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

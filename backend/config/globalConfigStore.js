@@ -3,6 +3,7 @@
 import GlobalConfig from '../models/GlobalConfig.js';
 
 // This object will hold our keys in memory
+// All other files import a reference to THIS object
 let currentConfig = {};
 
 /**
@@ -18,8 +19,11 @@ const loadConfigFromDB = async () => {
       config = await GlobalConfig.create({ configId: 'main_config' });
     }
 
-    // We no longer read from process.env for these keys
-    currentConfig = {
+    // --- THIS IS THE FIX ---
+    // We are not re-assigning currentConfig with '='
+    // We are *mutating* the existing object, so all services that
+    // imported it will see the new values.
+    Object.assign(currentConfig, {
       googleAiKey: config.googleAiKey,
       openAiKey: config.openAiKey,
       cloudinaryCloudName: config.cloudinaryCloudName,
@@ -31,13 +35,16 @@ const loadConfigFromDB = async () => {
       smtpPort: config.smtpPort,
       smtpUser: config.smtpUser,
       smtpPass: config.smtpPass,
-    };
+      smsUsername: config.smsUsername,
+      smsApiKey: config.smsApiKey,
+    });
+    // --- END OF FIX ---
     
     console.log('Global configuration loaded successfully.');
     
   } catch (error) {
     console.error('CRITICAL ERROR: Could not load global config from DB.', error);
-    process.exit(1); // Exit server if config can't be loaded
+    process.exit(1);
   }
 };
 

@@ -1,40 +1,64 @@
-// /frontend/src/context/AuthContext.jsx
+// frontend/src/context/AuthContext.jsx
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import apiClient from '../api/axios';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+const fetchUser = async () => {
+  try {
+    const { data } = await apiClient.get('/auth/me');
+    return data;
+  } catch (error) {
+    return null; 
+  }
+};
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [userInfo, setUserInfo] = useState(null);
+  const queryClient = useQueryClient();
 
-  // Check localStorage for user info on initial load
+  const { data, isLoading } = useQuery({
+    queryKey: ['authUser'],
+    queryFn: fetchUser,
+    retry: false,
+    staleTime: Infinity,
+    cacheTime: Infinity,
+  });
+
   useEffect(() => {
-    const storedUser = localStorage.getItem('userInfo');
-    if (storedUser) {
-      setUserInfo(JSON.parse(storedUser));
+    if (data) {
+      setUserInfo(data);
+    } else if (!isLoading) {
+      setUserInfo(null);
     }
-  }, []);
+  }, [data, isLoading]);
 
-  // Function to set user info and update localStorage
   const login = (userData) => {
     setUserInfo(userData);
-    localStorage.setItem('userInfo', JSON.stringify(userData));
+    queryClient.setQueryData(['authUser'], userData);
   };
 
-  // Function to clear user info and localStorage
   const logout = () => {
     setUserInfo(null);
-    localStorage.removeItem('userInfo');
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div>Checking authentication...</div>
+      </div>
+    );
+  }
+
   return (
-    <AuthContext.Provider value={{ userInfo, login, logout }}>
+    <AuthContext.Provider value={{ userInfo, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to easily access auth state and functions
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

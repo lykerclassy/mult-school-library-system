@@ -50,6 +50,7 @@ import StudentTimetable from './pages/StudentTimetable.jsx';
 import QuizHistory from './pages/QuizHistory.jsx';
 import GlobalUsers from './pages/GlobalUsers.jsx';
 import GlobalResources from './pages/GlobalResources.jsx';
+import ActivityLog from './pages/ActivityLog.jsx'; // <-- IMPORT
 
 // Placeholders
 const NotFound = () => <div className="flex items-center justify-center h-screen"><h1 className="text-4xl font-bold">404 - Page Not Found</h1></div>;
@@ -71,6 +72,7 @@ const AppRoutes = () => {
           <Route path="/dev/announcements" element={<GlobalAnnouncements />} />
           <Route path="/dev/support" element={<SupportTickets />} />
           <Route path="/support/ticket/:id" element={<TicketDetails />} />
+          <Route path="/dev/logs" element={<ActivityLog />} /> {/* <-- ADDED */}
           <Route path="/dev/settings" element={<DevSettings />} />
           <Route path="*" element={<NotFound />} />
         </Route>
@@ -189,16 +191,11 @@ const AppRoutes = () => {
 function App() {
   return (
     <Routes>
-      {/* Public Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register-developer" element={<RegisterDeveloperPage />} />
-
-      {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/*" element={<AppRoutes />} />
       </Route>
-
-      {/* Catch-all 404 Route */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
