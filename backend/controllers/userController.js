@@ -4,7 +4,13 @@ import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
 import School from '../models/School.js';
 import { sendEmail } from '../services/emailService.js';
+import Student from '../models/Student.js'; // Import Student model
 
+/**
+ * @desc    Create a new staff member (Librarian or Teacher)
+ * @route   POST /api/v1/users/staff
+ * @access  Private (SchoolAdmin)
+ */
 const createStaff = asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
   const schoolId = req.user.school;
@@ -57,6 +63,11 @@ const createStaff = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * @desc    Get all staff for the school
+ * @route   GET /api/v1/users/staff
+ * @access  Private (SchoolAdmin)
+ */
 const getStaff = asyncHandler(async (req, res) => {
   const staff = await User.find({
     school: req.user.school,
@@ -67,6 +78,11 @@ const getStaff = asyncHandler(async (req, res) => {
   res.status(200).json(staff);
 });
 
+/**
+ * @desc    Update a user's own profile
+ * @route   PUT /api/v1/users/profile
+ * @access  Private (All users)
+ */
 const updateUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (!user) {
@@ -87,6 +103,11 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Delete a staff member
+ * @route   DELETE /api/v1/users/staff/:id
+ * @access  Private (SchoolAdmin)
+ */
 const deleteStaff = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
   if (!user) {
@@ -108,6 +129,11 @@ const deleteStaff = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'User deleted successfully' });
 });
 
+/**
+ * @desc    Create a new parent
+ * @route   POST /api/v1/users/parent
+ * @access  Private (SchoolAdmin)
+ */
 const createParent = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
@@ -149,6 +175,11 @@ const createParent = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get all parents for the school
+ * @route   GET /api/v1/users/parents
+ * @access  Private (SchoolAdmin)
+ */
 const getParents = asyncHandler(async (req, res) => {
   const parents = await User.find({
     school: req.user.school,
@@ -160,11 +191,16 @@ const getParents = asyncHandler(async (req, res) => {
   res.status(200).json(parents);
 });
 
+/**
+ * @desc    Get all users (for Developer)
+ * @route   GET /api/v1/users/all
+ * @access  Private (Developer)
+ */
 const getAllUsers = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search = '' } = req.query;
 
   const query = {
-    role: { $ne: 'Developer' }, // Don't show the developer
+    role: { $ne: 'Developer' },
   };
 
   if (search) {
@@ -181,11 +217,15 @@ const getAllUsers = asyncHandler(async (req, res) => {
     populate: { path: 'school', select: 'name' },
   };
 
-  // This line will work now
   const paginatedResults = await User.paginate(query, options);
   res.status(200).json(paginatedResults);
 });
 
+/**
+ * @desc    Reset a user's password (by Developer)
+ * @route   PUT /api/v1/users/:id/reset-password
+ * @access  Private (Developer)
+ */
 const resetUserPassword = asyncHandler(async (req, res) => {
   const { newPassword } = req.body;
   
@@ -218,6 +258,11 @@ const resetUserPassword = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Password reset successfully' });
 });
 
+/**
+ * @desc    Change a user's role (by Developer)
+ * @route   PUT /api/v1/users/:id/change-role
+ * @access  Private (Developer)
+ */
 const changeUserRole = asyncHandler(async (req, res) => {
   const { newRole } = req.body;
   const validRoles = ['SchoolAdmin', 'Librarian', 'Teacher', 'Student', 'Parent'];
@@ -244,7 +289,36 @@ const changeUserRole = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'User role updated successfully' });
 });
 
+/**
+ * @desc    Get the associated demo accounts for the demo school
+ * @route   GET /api/v1/users/demo-accounts
+ * @access  Private (DemoAdmin)
+ */
+const getDemoAccounts = asyncHandler(async (req, res) => {
+  // 1. Find the Demo Teacher
+  const teacher = await User.findOne({
+    school: req.user.school,
+    email: 'teacher@springfield.com',
+  }).select('_id name role');
 
+  // 2. Find the Demo Student
+  const studentProfile = await Student.findOne({
+    school: req.user.school,
+    admissionNumber: '1001',
+  });
+  const student = await User.findById(studentProfile?.userAccount).select('_id name role');
+  
+  // 3. Find the Demo Parent
+  const parent = await User.findOne({
+    school: req.user.school,
+    email: 'parent@springfield.com',
+  }).select('_id name role');
+
+  res.status(200).json({ teacher, student, parent });
+});
+
+// --- THIS IS THE FIX ---
+// The export block was missing several functions
 export {
   createStaff,
   getStaff,
@@ -255,4 +329,5 @@ export {
   getAllUsers,
   resetUserPassword,
   changeUserRole,
+  getDemoAccounts,
 };

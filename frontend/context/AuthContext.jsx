@@ -2,61 +2,62 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import apiClient from '../api/axios';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
-const AuthContext = createContext(null);
-
-// Fetch user data if a cookie is present
 const fetchUser = async () => {
   try {
     const { data } = await apiClient.get('/auth/me');
     return data;
   } catch (error) {
-    return null; // No valid session
+    return null;
   }
 };
 
+const AuthContext = createContext(null);
+
 export const AuthProvider = ({ children }) => {
   const [userInfo, setUserInfo] = useState(null);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
-  // Use React Query to fetch the user on load
-  const { data, isLoading, isError } = useQuery({
+  // This runs once on reload to check if the cookie is valid
+  const { data, isLoading } = useQuery({
     queryKey: ['authUser'],
     queryFn: fetchUser,
-    retry: false, // Don't retry on failure
-    staleTime: Infinity, // User data is considered fresh
-    cacheTime: Infinity,
+    retry: false,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
-  // When data is fetched, update the auth state
   useEffect(() => {
-    if (data) {
-      setUserInfo(data);
-    } else if (isError || !isLoading) {
-      // If error or done loading with no data, ensure user is logged out
-      setUserInfo(null);
+    if (!isLoading) {
+      setUserInfo(data || null);
     }
-  }, [data, isLoading, isError]);
+  }, [data, isLoading]);
 
-  // Manual login (after form submission)
   const login = (userData) => {
     setUserInfo(userData);
+    queryClient.setQueryData(['authUser'], userData);
   };
 
-  // Manual logout
-  const logout = () => {
-    setUserInfo(null);
-    // We also need to invalidate the 'authUser' query
-    // This will be handled by the Header's logoutMutation
+  const logout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+      setUserInfo(null);
+      queryClient.setQueryData(['authUser'], null);
+      navigate('/login');
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
   };
 
-  // Show a loading spinner or splash screen while checking auth
+  // Block the app until we know if the user is logged in or not
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div>Loading Application...</div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading Application..." />;
   }
 
   return (
@@ -68,8 +69,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };

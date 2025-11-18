@@ -8,6 +8,18 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss(), // Add the Tailwind CSS plugin
+    tailwindcss(),
   ],
+  server: {
+    // --- THIS IS THE FIX ---
+    // We proxy all /api requests to the backend server
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+    // --- END OF FIX ---
+  },
 });

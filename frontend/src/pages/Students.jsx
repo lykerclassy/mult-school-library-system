@@ -16,149 +16,121 @@ import ConfirmationModal from '../components/common/ConfirmationModal';
 const fetchStudents = async (page, search) => (await apiClient.get('/students', { params: { page, search, limit: 10 } })).data;
 const createStudent = async (data) => (await apiClient.post('/students', data)).data;
 const updateStudent = async ({ id, ...data }) => (await apiClient.put(`/students/${id}`, data)).data;
-const deleteStudent = async (id) => (await apiClient.delete(`/students/${id}`)).data;
 const fetchParents = async () => (await apiClient.get('/users/parents')).data;
 const fetchClassLevels = async () => (await apiClient.get('/classes')).data;
+// --- THIS IS THE FIX FOR THE DELETE BUTTON ---
+const deleteStudent = async (id) => (await apiClient.delete(`/students/${id}`)).data;
 
-// --- (StudentForm is unchanged) ---
+// --- (StudentForm is unchanged from our last step) ---
 const StudentForm = ({ student, onSuccess }) => {
   const queryClient = useQueryClient();
   const [name, setName] = useState(student?.name || '');
   const [admissionNumber, setAdmissionNumber] = useState(
     student?.admissionNumber || ''
   );
+  const [email, setEmail] = useState(student?.userAccount?.email || '');
   const isEditMode = Boolean(student);
-  const createMutation = useMutation({
-    mutationFn: createStudent, onSuccess: () => { toast.success('Student added!'); queryClient.invalidateQueries(['students']); onSuccess(); },
-    onError: (error) => { toast.error(error.response?.data?.message || 'Failed to add'); },
-  });
-  const updateMutation = useMutation({
-    mutationFn: updateStudent, onSuccess: () => { toast.success('Student updated!'); queryClient.invalidateQueries(['students']); onSuccess(); },
-    onError: (error) => { toast.error(error.response?.data?.message || 'Failed to update'); },
+  const mutation = useMutation({
+    mutationFn: isEditMode ? updateStudent : createStudent,
+    onSuccess: () => {
+      toast.success(`Student ${isEditMode ? 'updated' : 'added'} successfully!`);
+      queryClient.invalidateQueries(['students']);
+      onSuccess();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to save student');
+    },
   });
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (isEditMode) { updateMutation.mutate({ id: student._id, name, admissionNumber }); }
-    else { createMutation.mutate({ name, admissionNumber }); }
+    const studentData = { name, admissionNumber, email };
+    if (isEditMode) {
+      mutation.mutate({ id: student._id, ...studentData });
+    } else {
+      mutation.mutate(studentData);
+    }
   };
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input label="Student Name" id="name" value={name} onChange={(e) => setName(e.target.value)} required />
-      <Input label="Admission Number" id="admissionNumber" placeholder="Must be 6+ chars" value={admissionNumber} onChange={(e) => setAdmissionNumber(e.target.value)} required />
-      <Button type="submit" isLoading={createMutation.isLoading || updateMutation.isLoading}>
+      <Input label="Student Email" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Credentials will be sent here" required />
+      <Input label="Admission Number" id="admissionNumber" placeholder="e.g., 1001" value={admissionNumber} onChange={(e) => setAdmissionNumber(e.target.value)} required />
+      <Button type="submit" isLoading={mutation.isLoading}>
         {isEditMode ? 'Update Student' : 'Add Student'}
       </Button>
     </form>
   );
 };
 
-
-// --- LinkParentModal (FIXED) ---
+// --- (LinkParentModal is unchanged) ---
 const LinkParentModal = ({ student, onClose, onSuccess }) => {
   const queryClient = useQueryClient();
-  const [parentId, setParentId] = useState(student.parent?._id || ''); // Set default
-
+  const [parentId, setParentId] = useState(student.parent?._id || '');
   const { data: parents, isLoading: isLoadingParents } = useQuery({
     queryKey: ['parents'],
-    queryFn: fetchParents, // Use the correct, new API
+    queryFn: fetchParents,
   });
-
   const linkMutation = useMutation({
     mutationFn: (newParentId) => apiClient.put(`/students/${student._id}/link-parent`, { parentId: newParentId }),
     onSuccess: () => {
-      toast.success('Parent linked successfully!');
+      toast.success('Parent linked!');
       queryClient.invalidateQueries(['students']);
       onSuccess();
     },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to link parent');
-    },
+    onError: (error) => toast.error(error.response?.data?.message || 'Failed'),
   });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    linkMutation.mutate(parentId);
-  };
-
+  const handleSubmit = (e) => { e.preventDefault(); linkMutation.mutate(parentId); };
   return (
     <Modal isOpen={true} onClose={onClose} title={`Link Parent to ${student.name}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <select
-          onChange={(e) => setParentId(e.target.value)}
-          value={parentId}
-          className="w-full p-2 border rounded-md"
-          required
-        >
-          <option value="">{isLoadingParents ? 'Loading parents...' : 'Select a Parent'}</option>
-          {parents?.map(p => (
-            <option key={p._id} value={p._id}>{p.name} ({p.email})</option>
-          ))}
+        <select onChange={(e) => setParentId(e.target.value)} value={parentId} className="w-full p-2 border rounded-md" required>
+          <option value="">{isLoadingParents ? 'Loading...' : 'Select a Parent'}</option>
+          {parents?.map(p => <option key={p._id} value={p._id}>{p.name} ({p.email})</option>)}
         </select>
-        <Button type="submit" isLoading={linkMutation.isLoading}>
-          Link Parent
-        </Button>
+        <Button type="submit" isLoading={linkMutation.isLoading}>Link Parent</Button>
       </form>
     </Modal>
   );
 };
 
-// --- NEW COMPONENT: AssignClassModal ---
+// --- (AssignClassModal is unchanged) ---
 const AssignClassModal = ({ student, onClose, onSuccess }) => {
   const queryClient = useQueryClient();
   const [classId, setClassId] = useState(student.classLevel?._id || '');
-
   const { data: classes, isLoading: isLoadingClasses } = useQuery({
     queryKey: ['classLevels'],
     queryFn: fetchClassLevels,
   });
-
   const linkMutation = useMutation({
     mutationFn: (newClassId) => apiClient.put(`/students/${student._id}/assign-class`, { classId: newClassId }),
     onSuccess: () => {
-      toast.success('Class assigned successfully!');
+      toast.success('Class assigned!');
       queryClient.invalidateQueries(['students']);
       onSuccess();
     },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to assign class');
-    },
+    onError: (error) => toast.error(error.response?.data?.message || 'Failed'),
   });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    linkMutation.mutate(classId);
-  };
-
+  const handleSubmit = (e) => { e.preventDefault(); linkMutation.mutate(classId); };
   return (
     <Modal isOpen={true} onClose={onClose} title={`Assign Class for ${student.name}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <select
-          onChange={(e) => setClassId(e.target.value)}
-          value={classId}
-          className="w-full p-2 border rounded-md"
-          required
-        >
-          <option value="">{isLoadingClasses ? 'Loading classes...' : 'Select a Class'}</option>
-          {classes?.map(c => (
-            <option key={c._id} value={c._id}>{c.name}</option>
-          ))}
+        <select onChange={(e) => setClassId(e.target.value)} value={classId} className="w-full p-2 border rounded-md" required>
+          <option value="">{isLoadingClasses ? 'Loading...' : 'Select a Class'}</option>
+          {classes?.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
         </select>
-        <Button type="submit" isLoading={linkMutation.isLoading}>
-          Assign Class
-        </Button>
+        <Button type="submit" isLoading={linkMutation.isLoading}>Assign Class</Button>
       </form>
     </Modal>
   );
 };
 
-
-// --- Main Page Component (UPDATED) ---
+// --- Main Page Component ---
 const Students = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-  const [isClassModalOpen, setIsClassModalOpen] = useState(false); // <-- New State
+  const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   
   const [page, setPage] = useState(1);
@@ -176,7 +148,7 @@ const Students = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteStudent,
+    mutationFn: deleteStudent, // <-- This will now work
     onSuccess: () => {
       toast.success('Student deleted successfully');
       queryClient.invalidateQueries(['students']);
@@ -192,12 +164,12 @@ const Students = () => {
   const openEditModal = (student) => { setSelectedStudent(student); setIsModalOpen(true); };
   const openDeleteModal = (student) => { setSelectedStudent(student); setIsDeleteModalOpen(true); };
   const openLinkModal = (student) => { setSelectedStudent(student); setIsLinkModalOpen(true); };
-  const openClassModal = (student) => { setSelectedStudent(student); setIsClassModalOpen(true); }; // <-- New
+  const openClassModal = (student) => { setSelectedStudent(student); setIsClassModalOpen(true); };
 
   const closeModal = () => { setIsModalOpen(false); setSelectedStudent(null); };
   const closeDeleteModal = () => { setIsDeleteModalOpen(false); setSelectedStudent(null); };
   const closeLinkModal = () => { setIsLinkModalOpen(false); setSelectedStudent(null); };
-  const closeClassModal = () => { setIsClassModalOpen(false); setSelectedStudent(null); }; // <-- New
+  const closeClassModal = () => { setIsClassModalOpen(false); setSelectedStudent(null); };
 
   if (isError) return <div>Error loading students.</div>;
 
@@ -222,12 +194,13 @@ const Students = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Parent</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading && (
-                <tr><td colSpan="4" className="p-4 text-center">Loading...</td></tr>
+                <tr><td colSpan="5" className="p-4 text-center">Loading...</td></tr>
               )}
               {!isLoading && studentsData.docs.map((student) => (
                 <tr key={student._id}>
@@ -245,6 +218,9 @@ const Students = () => {
                         Link Parent
                       </button>
                     )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {student.userAccount?.email}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
                     <button onClick={() => openClassModal(student)} className="text-gray-500 hover:text-green-700" title="Assign Class">
@@ -270,7 +246,6 @@ const Students = () => {
         )}
       </div>
 
-      {/* Modals */}
       <Modal isOpen={isModalOpen} onClose={closeModal} title={selectedStudent ? 'Edit Student' : 'Add New Student'}>
         <StudentForm student={selectedStudent} onSuccess={closeModal} />
       </Modal>

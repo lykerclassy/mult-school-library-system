@@ -1,11 +1,8 @@
 // /frontend/src/components/layout/Header.jsx
 
 import React, { useState, useEffect } from 'react';
-// --- 1. IMPORT useQueryClient ---
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import apiClient from '../../api/axios';
 import toast from 'react-hot-toast';
 import { User, LogOut, Menu, Bell, CheckCheck } from 'lucide-react';
 import useSidebarStore from '../../hooks/useSidebar';
@@ -78,42 +75,21 @@ const NotificationDropdown = () => {
 
 // --- Main Header Component (FIXED) ---
 const Header = () => {
+  // --- 1. Get the new, simpler 'logout' and 'userInfo' ---
   const { userInfo, logout } = useAuth();
-  const navigate = useNavigate();
   const { toggleSidebar } = useSidebarStore();
-  
-  // --- 2. GET THE QUERY CLIENT ---
-  const queryClient = useQueryClient();
-  
   const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
+
   useEffect(() => {
     if (userInfo) {
       fetchNotifications();
     }
   }, [userInfo, fetchNotifications]);
-
-  const logoutMutation = useMutation({
-    mutationFn: () => apiClient.post('/auth/logout'),
-    onSuccess: () => {
-      logout(); // 1. Clear local context state
-      
-      // --- 3. THIS IS THE FIX ---
-      // This tells React Query to completely clear the 'authUser' cache.
-      // The AuthContext will re-run fetchUser, which will fail (no cookie)
-      // and successfully log you out.
-      queryClient.removeQueries({ queryKey: ['authUser'] });
-      // --- END OF FIX ---
-      
-      navigate('/login');
-      toast.success('Logged out successfully');
-    },
-    onError: (error) => {
-      toast.error('Logout failed. Please try again.');
-    },
-  });
+  
+  // --- 2. We no longer need useMutation or queryClient here ---
 
   const handleLogout = () => {
-    logoutMutation.mutate();
+    logout(); // Just call the function from the context
   };
 
   return (
@@ -133,12 +109,11 @@ const Header = () => {
         <NotificationDropdown />
         <button
           onClick={handleLogout}
-          disabled={logoutMutation.isLoading}
           className="flex items-center space-x-2 text-gray-600 hover:text-primary transition-colors"
         >
           <LogOut className="w-5 h-5" />
           <span className="hidden md:inline">
-            {logoutMutation.isLoading ? 'Logging out...' : 'Logout'}
+            Logout
           </span>
         </button>
       </div>

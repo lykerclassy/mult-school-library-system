@@ -5,6 +5,7 @@ import Student from '../models/Student.js';
 import User from '../models/User.js';
 import School from '../models/School.js';
 import { sendEmail } from '../services/emailService.js';
+import crypto from 'crypto';
 
 /**
  * @desc    Add a new student
@@ -12,18 +13,12 @@ import { sendEmail } from '../services/emailService.js';
  * @access  Private (SchoolAdmin)
  */
 const addStudent = asyncHandler(async (req, res) => {
-  const { name, admissionNumber } = req.body;
+  const { name, admissionNumber, email } = req.body;
   const schoolId = req.user.school;
 
-  if (!name || !admissionNumber) {
+  if (!name || !admissionNumber || !email) {
     res.status(400);
-    throw new Error('Please provide name and admission number');
-  }
-  if (admissionNumber.length < 6) {
-    res.status(400);
-    throw new Error(
-      'Admission Number must be at least 6 characters long (it is used as the default password).'
-    );
+    throw new Error('Please provide name, admission number, and email');
   }
 
   const school = await School.findById(schoolId);
@@ -41,23 +36,17 @@ const addStudent = asyncHandler(async (req, res) => {
     throw new Error('Student with this admission number already exists');
   }
 
-  const schoolNameHandle = school.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]/gi, '');
-  const studentEmail = `${admissionNumber}@${schoolNameHandle}.com`;
-  const defaultPassword = admissionNumber;
-
-  const userExists = await User.findOne({ email: studentEmail });
+  const userExists = await User.findOne({ email });
   if (userExists) {
     res.status(400);
-    throw new Error(
-      'A user account for this student admission number already exists.'
-    );
+    throw new Error('A user account with this email already exists.');
   }
+
+  const defaultPassword = `Std@${crypto.randomBytes(3).toString('hex')}`;
 
   const studentUser = new User({
     name,
-    email: studentEmail,
+    email: email,
     password: defaultPassword,
     role: 'Student',
     school: schoolId,
@@ -74,19 +63,24 @@ const addStudent = asyncHandler(async (req, res) => {
     await studentUser.save();
     const createdStudent = await student.save();
 
-    try {
-      const emailHtml = `
-        <h1>Welcome to ${school.name}'s Library Portal!</h1>
-        <p>Hello ${name}, an account has been created for you.</p>
-        <p>You can now log in using the following credentials:</p>
-        <p><strong>Email:</strong> ${studentEmail}</p>
-        <p><strong>Password:</strong> ${defaultPassword}</p>
-        <p>Please log in and change your password in the Settings page.</p>
-      `;
-      await sendEmail(studentEmail, "Your New Library Account", emailHtml);
-    } catch (emailError) {
-      console.error("Failed to send welcome email to student:", emailError);
+    // --- THIS IS THE FIX FOR DEMO EMAILS ---
+    // Only send an email if the person *creating* the account is NOT the demo admin
+    if (req.user.email !== 'demo@springfield.com') {
+      try {
+        const emailHtml = `
+          <h1>Welcome to ${school.name}'s Library Portal!</h1>
+          <p>Hello ${name}, an account has been created for you.</p>
+          <p>You can now log in using the following credentials:</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Password:</strong> ${defaultPassword}</p>
+          <p>Please log in and change your password in the Settings page.</p>
+        `;
+        await sendEmail(email, "Your New Library Account", emailHtml);
+      } catch (emailError) {
+        console.error("Failed to send welcome email to student:", emailError);
+      }
     }
+    // --- END OF FIX ---
 
     res.status(201).json(createdStudent);
   } catch (error) {
@@ -150,25 +144,22 @@ const getStudentById = asyncHandler(async (req, res) => {
  * @access  Private (SchoolAdmin)
  */
 const updateStudent = asyncHandler(async (req, res) => {
-  const { name, admissionNumber } = req.body;
+  const { name, admissionNumber, email } = req.body;
   const student = await Student.findById(req.params.id).populate('userAccount');
+
   if (!student || student.school.toString() !== req.user.school.toString()) {
     res.status(404);
     throw new Error('Student not found');
   }
+  
   if (student.userAccount) {
     const user = await User.findById(student.userAccount._id);
     if (!user) {
       res.status(404);
       throw new Error('Student user account not found. Please re-create student.');
     }
+
     if (admissionNumber && admissionNumber !== student.admissionNumber) {
-      if (admissionNumber.length < 6) {
-        res.status(400);
-        throw new Error(
-          'Admission Number must be at least 6 characters long (it is used as the default password).'
-        );
-      }
       const studentExists = await Student.findOne({
         admissionNumber,
         school: req.user.school,
@@ -178,20 +169,30 @@ const updateStudent = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('Another student with this admission number already exists');
       }
-      const school = await School.findById(req.user.school);
-      const schoolNameHandle = school.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]/gi, '');
-      user.email = `${admissionNumber}@${schoolNameHandle}.com`;
     }
+    
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({
+        email,
+        _id: { $ne: user._id }
+      });
+      if(emailExists) {
+        res.status(400);
+        throw new Error('Another user with this email already exists');
+      }
+      user.email = email;
+    }
+    
     student.name = name || student.name;
     student.admissionNumber = admissionNumber || student.admissionNumber;
     user.name = name || user.name;
     await user.save();
+    
   } else {
     student.name = name || student.name;
     student.admissionNumber = admissionNumber || student.admissionNumber;
   }
+
   const updatedStudent = await student.save();
   res.status(200).json(updatedStudent);
 });
@@ -256,7 +257,7 @@ const assignClassToStudent = asyncHandler(async (req, res) => {
     throw new Error('Student not found');
   }
 
-  student.classLevel = classId || null; // Assign or unassign
+  student.classLevel = classId || null;
   await student.save();
 
   res.status(200).json({ message: 'Student class updated' });
@@ -286,7 +287,7 @@ const getStudentsByClass = asyncHandler(async (req, res) => {
 const getUnassignedStudents = asyncHandler(async (req, res) => {
   const students = await Student.find({
     school: req.user.school,
-    classLevel: null, // Find only students with no class
+    classLevel: null,
   })
   .select('name admissionNumber')
   .sort({ name: 1 });
@@ -313,8 +314,9 @@ const unassignStudentFromClass = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Student unassigned from class' });
 });
 
-// --- THIS IS THE FIX ---
-// The export block was missing all the functions
+
+// --- THIS IS THE FIX FOR THE SERVER CRASH ---
+// The export block was incomplete
 export {
   addStudent,
   getStudents,

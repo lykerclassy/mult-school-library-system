@@ -5,10 +5,16 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import useSidebarStore from '../../hooks/useSidebar';
+import { useAuth } from '../../context/AuthContext'; // <-- 1. IMPORT
+import DemoRoleSwitcher from './DemoRoleSwitcher'; // <-- 2. IMPORT
 
 const DashboardLayout = () => {
   const { isOpen, setIsOpen } = useSidebarStore();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // --- 3. GET USER INFO ---
+  const { userInfo } = useAuth();
+  const isDemoMode = userInfo?.email === 'demo@springfield.com';
 
   useEffect(() => {
     const handleResize = () => {
@@ -24,16 +30,9 @@ const DashboardLayout = () => {
   }, [setIsOpen]);
 
   return (
-    // --- THIS IS THE FIX ---
-    // We apply our custom 'bg-background' color here,
-    // which was defined in tailwind.config.js
     <div className="flex h-screen bg-background">
-    {/* --- END OF FIX --- */}
-    
-      {/* Sidebar */}
       <Sidebar />
 
-      {/* Mobile Backdrop */}
       {isOpen && isMobile && (
         <div
           onClick={() => setIsOpen(false)}
@@ -43,12 +42,13 @@ const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
+        {/* --- 4. ADD THE DEMO BAR (conditionally) --- */}
+        {isDemoMode && <DemoRoleSwitcher />}
+        
         <Header />
 
-        {/* Page Content */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
-          <Outlet /> {/* Renders the active page */}
+          <Outlet />
         </main>
       </div>
     </div>

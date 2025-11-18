@@ -5,19 +5,19 @@ const router = express.Router();
 import {
   registerDeveloper,
   loginUser,
-  checkUserByEmail, // <-- IMPORT
+  checkUserByEmail,
   logoutUser,
   getMe,
+  demoLogin,
+  impersonateUser, // <-- IMPORT
 } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
-// Public Routes
 router.post('/register-developer', registerDeveloper);
 router.post('/login', loginUser);
-router.post('/check-email', checkUserByEmail); // <-- ADD NEW ROUTE
-router.post('/logout', logoutUser);
-
-// Private Route
+router.post('/demo-login', demoLogin);
+router.post('/logout', protect, logoutUser);
 router.get('/me', protect, getMe);
+router.post('/impersonate', protect, impersonateUser); // <-- ADD THIS ROUTE
 
 export default router;
