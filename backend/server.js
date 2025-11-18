@@ -10,26 +10,19 @@ import { startCronJobs } from './services/cronJobs.js';
 import { loadConfigFromDB } from './config/globalConfigStore.js';
 import { initEmailService } from './services/emailService.js';
 import { initSmsService } from './services/smsService.js';
+import { initIntasend } from './services/intasendService.js'; // <-- 1. IMPORT
 
-// Load .env variables (ONLY for DB, Port, JWT_SECRET, CLIENT_URL)
+// Load .env variables
 dotenv.config();
-
 const port = process.env.PORT || 5000;
 const app = express();
 
 // --- Core Middleware ---
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
-// --- CORS CONFIGURATION (UPDATED) ---
-// This allows cookies (credentials) to be sent from the specific Frontend URL
-app.use(cors({ 
-  origin: process.env.CLIENT_URL, // e.g. 'http://localhost:5173' or 'https://your-app.vercel.app'
-  credentials: true 
-}));
-
+app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(cookieParser());
-app.set('trust proxy', 1); // Required for secure cookies behind proxies (like Render/Vercel)
+app.set('trust proxy', 1);
 
 // --- ASYNC START FUNCTION ---
 const startServer = async () => {
@@ -40,15 +33,8 @@ const startServer = async () => {
     // 2. Load the global config from the DB into memory
     await loadConfigFromDB();
 
-    // --- 3. Initialize services that depend on DB config ---
-    initEmailService();
-    initSmsService();
-    
-    // Import Cloudinary config (it initializes itself using the loaded config)
+    // 3. Dynamically import all routes
     await import('./config/cloudinary.js');
-
-    // --- 4. Dynamically import all routes ---
-    // These must be imported AFTER loadConfigFromDB to ensure they have access to keys
     const authRoutes = (await import('./routes/authRoutes.js')).default;
     const schoolRoutes = (await import('./routes/schoolRoutes.js')).default;
     const studentRoutes = (await import('./routes/studentRoutes.js')).default;
@@ -69,9 +55,14 @@ const startServer = async () => {
     const configRoutes = (await import('./routes/configRoutes.js')).default;
     const timetableRoutes = (await import('./routes/timetableRoutes.js')).default;
     const activityLogRoutes = (await import('./routes/activityLogRoutes.js')).default;
-    const billingRoutes = (await import('./routes/billingRoutes.js')).default;
-    
-    // --- 5. Use Routes ---
+    const billingRoutes = (await import('./routes/billingRoutes.js')).default; // <-- 2. IMPORT
+
+    // 4. Initialize services
+    initEmailService();
+    initSmsService();
+    initIntasend(); // <-- 3. INITIALIZE INTASEND
+
+    // 5. Use Routes
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/schools', schoolRoutes);
     app.use('/api/v1/students', studentRoutes);
@@ -92,16 +83,15 @@ const startServer = async () => {
     app.use('/api/v1/config', configRoutes);
     app.use('/api/v1/timetables', timetableRoutes);
     app.use('/api/v1/logs', activityLogRoutes);
-    app.use('/api/v1/billing', billingRoutes);
-    
-    // --- 6. Error Handling ---
+    app.use('/api/v1/billing', billingRoutes); // <-- 4. ADD THIS
+
+    // 6. Error Handling
     app.use(notFound);
     app.use(errorHandler);
     
-    // --- 7. Start Server ---
+    // 7. Start Server
     app.listen(port, () => {
       console.log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
-      // 8. Start cron jobs
       startCronJobs();
     });
 
