@@ -10,26 +10,30 @@ const DashboardLayout = () => {
   const { isOpen, setIsOpen } = useSidebarStore();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  // Effect to handle resizing and initial sidebar state
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      setIsOpen(!mobile); // Close sidebar by default on mobile
+      setIsOpen(!mobile);
     };
 
     window.addEventListener('resize', handleResize);
-    handleResize(); // Call on initial load
+    handleResize();
 
     return () => window.removeEventListener('resize', handleResize);
   }, [setIsOpen]);
 
   return (
+    // --- THIS IS THE FIX ---
+    // We apply our custom 'bg-background' color here,
+    // which was defined in tailwind.config.js
     <div className="flex h-screen bg-background">
+    {/* --- END OF FIX --- */}
+    
       {/* Sidebar */}
       <Sidebar />
 
-      {/* Mobile Backdrop - shown when sidebar is open on mobile */}
+      {/* Mobile Backdrop */}
       {isOpen && isMobile && (
         <div
           onClick={() => setIsOpen(false)}
@@ -44,7 +48,7 @@ const DashboardLayout = () => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
-          <Outlet /> {/* This renders the active page component */}
+          <Outlet /> {/* Renders the active page */}
         </main>
       </div>
     </div>

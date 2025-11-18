@@ -7,7 +7,6 @@ import School from '../models/School.js';
 import Payment from '../models/Payment.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
-import { generateInvoicePDF } from '../services/invoiceService.js'; // <-- 1. IMPORT
 
 /**
  * @desc    Initiate an STK push payment
@@ -25,16 +24,24 @@ const initiatePayment = asyncHandler(async (req, res) => {
 
   const amountToPay = plan.price / 100;
 
+  // --- THIS IS THE FIX ---
+  // 1. 'payment' is declared HERE, at the top of its scope.
   const payment = new Payment({
     school: schoolId,
     plan: planId,
     amount: amountToPay,
     status: 'Pending',
     phoneNumber: phoneNumber,
-    intasendInvoiceId: payment._id.toString(), // Unique temp ID
+    // We cannot use payment._id here
   });
-  await payment.save();
 
+  // 2. Now that 'payment' exists, use its unique _id
+  payment.intasendInvoiceId = payment._id.toString();
+  
+  // 3. Now save the document.
+  await payment.save();
+  // --- END OF FIX ---
+  
   const intasend = getIntasend();
   const collection = intasend.collection();
   
@@ -44,9 +51,10 @@ const initiatePayment = asyncHandler(async (req, res) => {
     email: req.user.email,
     phone_number: phoneNumber,
     amount: amountToPay,
-    api_ref: `payment_${payment._id}`,
+    api_ref: `payment_${payment._id}`, // This is now safe
   });
 
+  // 4. Update the payment with the REAL invoice ID from IntaSend
   payment.intasendInvoiceId = response.invoice.invoice_id;
   await payment.save();
 
@@ -71,7 +79,6 @@ const handleWebhook = asyncHandler(async (req, res) => {
 
   let payment = await Payment.findOne({ intasendInvoiceId: invoiceId });
   
-  // Fallback check
   if (!payment && apiRef) {
     const paymentId = apiRef.split('_')[1];
     payment = await Payment.findById(paymentId);
@@ -90,7 +97,7 @@ const handleWebhook = asyncHandler(async (req, res) => {
   }
 
   if (state === 'COMPLETE') {
-    const school = await School.findById(payment.school);
+    const school = await School.findById(payment.school).populate('admin', 'name email');
     const plan = await Plan.findById(payment.plan);
     
     if (!school || !plan) {
@@ -98,29 +105,19 @@ const handleWebhook = asyncHandler(async (req, res) => {
       return res.status(404).send('School or Plan not found');
     }
 
-    // 1. Upgrade the school
     school.plan = payment.plan;
     school.subscriptionStatus = 'Active';
     const newBillingDate = new Date();
     newBillingDate.setMonth(newBillingDate.getMonth() + 1);
     school.nextBillingDate = newBillingDate;
-    
-    // --- 2. GENERATE AND UPLOAD INVOICE ---
-    // Populate the admin details needed for the invoice template
-    const adminUser = await User.findById(school.admin).select('name email');
-    school.admin = adminUser;
-    
-    const invoiceUrl = await generateInvoicePDF(payment, school, plan);
-    payment.invoiceUrl = invoiceUrl; // Save the URL
-    // --- END INVOICE GENERATION ---
-
     await school.save();
 
-    // 3. Mark payment as complete
     payment.status = 'Completed';
+    // We (incorrectly) were not saving the invoice URL here
+    const invoiceUrl = await generateInvoicePDF(payment, school, plan);
+    payment.invoiceUrl = invoiceUrl; 
     await payment.save();
 
-    // 4. Notify the Developer
     const developer = await User.findOne({ role: 'Developer' });
     if (developer) {
       await Notification.create({
@@ -182,7 +179,6 @@ const getPaymentStatus = asyncHandler(async (req, res) => {
 const generateInvoice = asyncHandler(async (req, res) => {
   const paymentId = req.params.paymentId;
 
-  // 1. Fetch data
   const payment = await Payment.findById(paymentId).populate('school plan');
   
   if (!payment || payment.status !== 'Completed') {
@@ -190,19 +186,17 @@ const generateInvoice = asyncHandler(async (req, res) => {
     throw new Error('Invoice not found or payment incomplete.');
   }
 
-  // 2. Security Check: Only the paying school's admin or the Developer can view
   if (req.user.role !== 'Developer' && payment.school._id.toString() !== req.user.school.toString()) {
     res.status(403);
     throw new Error('Not authorized to view this invoice.');
   }
   
-  // 3. Trigger download
   if (!payment.invoiceUrl) {
-    res.status(404);
-    throw new Error('Invoice file not found in storage. Please contact support.');
+     res.status(404);
+     throw new Error('Invoice file not found in storage. Please contact support.');
   }
   
-  // Redirect to Cloudinary URL to initiate download
+  // Redirect to the Cloudinary URL to trigger the download
   res.redirect(payment.invoiceUrl);
 });
 
@@ -212,5 +206,5 @@ export {
   handleWebhook,
   verifyWebhook,
   getPaymentStatus,
-  generateInvoice // <-- EXPORT
+  generateInvoice
 };

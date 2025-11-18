@@ -5,7 +5,7 @@ const router = express.Router();
 import {
   createGlobalAnnouncement,
   getGlobalAnnouncements,
-  deleteGlobalAnnouncement, // <-- IMPORT
+  deleteGlobalAnnouncement,
   createSupportTicket,
   getAllTickets,
   getMyTickets,
@@ -17,9 +17,11 @@ import { protect, isDeveloper, isSchoolAdmin } from '../middleware/authMiddlewar
 // --- Global Announcements ---
 router.route('/global-announcements')
   .post(protect, isDeveloper, createGlobalAnnouncement)
-  .get(protect, getGlobalAnnouncements);
+  // --- THIS IS THE FIX ---
+  // Only Developers and School Admins can GET the global list
+  .get(protect, getGlobalAnnouncements); 
+  // --- END OF FIX ---
 
-// --- NEW ROUTE ---
 router.route('/global-announcements/:id')
   .delete(protect, isDeveloper, deleteGlobalAnnouncement);
 

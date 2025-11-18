@@ -2,8 +2,8 @@
 
 import asyncHandler from 'express-async-handler';
 import Announcement from '../models/Announcement.js';
-import Notification from '../models/Notification.js'; // <-- 1. IMPORT
-import User from '../models/User.js'; // <-- 2. IMPORT
+import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 
 /**
  * @desc    Create a new announcement
@@ -12,44 +12,36 @@ import User from '../models/User.js'; // <-- 2. IMPORT
  */
 const createAnnouncement = asyncHandler(async (req, res) => {
   const { title, content } = req.body;
-  const schoolId = req.user.school;
-  const posterId = req.user._id;
 
   if (!title || !content) {
     res.status(400);
     throw new Error('Please provide a title and content');
   }
 
-  // 3. Create the announcement
+  // This is correct: it's tied to the user's school
   const announcement = await Announcement.create({
     title,
     content,
-    school: schoolId,
-    postedBy: posterId,
+    school: req.user.school,
+    postedBy: req.user._id,
   });
 
-  // --- 4. CREATE NOTIFICATIONS FOR EVERYONE ELSE ---
+  // (Notification logic is unchanged)
   if (announcement) {
-    // Find all users in the same school, except the person who posted
     const usersToNotify = await User.find({
-      school: schoolId,
-      _id: { $ne: posterId }, // $ne means 'not equal'
+      school: req.user.school,
+      _id: { $ne: req.user._id },
     }).select('_id');
-
-    // Create a list of notification documents
     const notifications = usersToNotify.map(user => ({
       user: user._id,
-      school: schoolId,
+      school: req.user.school,
       message: `New Announcement: "${title}"`,
       link: '/announcements',
     }));
-
-    // Insert them all into the database
     if (notifications.length > 0) {
       await Notification.insertMany(notifications);
     }
   }
-  // --- END NOTIFICATION LOGIC ---
 
   res.status(201).json(announcement);
 });
@@ -62,11 +54,22 @@ const createAnnouncement = asyncHandler(async (req, res) => {
 const getAnnouncements = asyncHandler(async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
 
+  // --- THIS IS THE FIX ---
+  // We must ensure the user has a school.
+  // A Developer (who has no school) should not use this route.
+  if (!req.user.school) {
+    res.status(400);
+    throw new Error('User is not associated with a school.');
+  }
+
+  // This query is now guaranteed to be specific to the user's school.
   const query = { school: req.user.school };
+  // --- END OF FIX ---
+  
   const options = {
     page: parseInt(page, 10),
     limit: parseInt(limit, 10),
-    sort: { createdAt: -1 }, // Show newest first
+    sort: { createdAt: -1 },
     populate: { path: 'postedBy', select: 'name role' },
   };
 
@@ -90,7 +93,6 @@ const deleteAnnouncement = asyncHandler(async (req, res) => {
     throw new Error('Announcement not found');
   }
 
-  // Only the user who posted it or an Admin can delete
   if (
     announcement.postedBy.toString() !== req.user._id.toString() &&
     req.user.role !== 'SchoolAdmin'

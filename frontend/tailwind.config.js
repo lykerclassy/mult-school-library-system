@@ -2,18 +2,10 @@
 
 /** @type {import('tailwindcss').Config} */
 export default {
+  // We MUST keep the 'content' array.
+  // This tells Tailwind to scan all your .jsx files for classes.
+  // The new automatic detection can miss things.
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
-  theme: {
-    extend: {
-      colors: {
-        primary: '#1D4ED8', // blue-700
-        secondary: '#6B7280', // gray-500
-        background: '#F3F4F6', // gray-100
-        surface: '#FFFFFF', // white
-      },
-    },
-  },
-  plugins: [
-    require('@tailwindcss/forms'), // This plugin is still needed
-  ],
+  
+  // 'theme' and 'plugins' are now moved to index.css
 };

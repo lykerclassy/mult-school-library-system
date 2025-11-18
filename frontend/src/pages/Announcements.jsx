@@ -10,7 +10,7 @@ import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Pagination from '../components/common/Pagination';
 import ConfirmationModal from '../components/common/ConfirmationModal';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext'; // <-- 1. IMPORT useAuth
 
 // --- API Functions ---
 const fetchAnnouncements = async (page) => {
@@ -20,7 +20,7 @@ const fetchAnnouncements = async (page) => {
 const fetchGlobalAnnouncements = async () => (await apiClient.get('/comm/global-announcements')).data;
 const createAnnouncement = async (data) => (await apiClient.post('/announcements', data)).data;
 const deleteAnnouncement = async (id) => (await apiClient.delete(`/announcements/${id}`)).data;
-const deleteGlobalAnnouncement = async (id) => (await apiClient.delete(`/comm/global-announcements/${id}`)).data; // <-- NEW
+const deleteGlobalAnnouncement = async (id) => (await apiClient.delete(`/comm/global-announcements/${id}`)).data;
 
 // --- Post Form Component (Unchanged) ---
 const PostAnnouncementForm = () => {
@@ -58,34 +58,39 @@ const Announcements = () => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
+  
+  // --- 2. GET USER INFO AND ROLE ---
   const { userInfo } = useAuth();
   const canPost = ['SchoolAdmin', 'Teacher', 'Librarian'].includes(userInfo?.role);
   const isDeveloper = userInfo?.role === 'Developer';
+  const isSchoolAdmin = userInfo?.role === 'SchoolAdmin';
 
-  // --- 1. Fetch BOTH School and Global Announcements ---
+  // 3. Fetch School Announcements (for everyone)
   const { data: schoolData, isLoading: isLoadingSchool } = useQuery({
     queryKey: ['announcements', page],
     queryFn: () => fetchAnnouncements(page),
     keepPreviousData: true,
   });
   
+  // 4. Fetch Global Announcements (ONLY if user is an Admin)
   const { data: globalData, isLoading: isLoadingGlobal } = useQuery({
     queryKey: ['globalAnnouncements'],
     queryFn: fetchGlobalAnnouncements,
+    enabled: isSchoolAdmin, // <-- This is the fix
   });
 
-  // 2. Merge and sort them
+  // 5. Merge them
   const combinedAnnouncements = useMemo(() => {
     const school = schoolData?.docs.map(a => ({ ...a, type: 'school' })) || [];
-    const global = globalData?.map(a => ({ ...a, type: 'global' })) || [];
+    // Only add global data if it was fetched
+    const global = isSchoolAdmin ? (globalData?.map(a => ({ ...a, type: 'global' })) || []) : [];
     
-    // We only show global announcements on page 1
     const all = page === 1 ? [...global, ...school] : [...school];
     
     return all.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [schoolData, globalData, page]);
+  }, [schoolData, globalData, page, isSchoolAdmin]);
 
-  // 3. Setup both delete mutations
+  // (Delete mutations are unchanged)
   const deleteSchoolMutation = useMutation({
     mutationFn: deleteAnnouncement,
     onSuccess: () => {
@@ -95,7 +100,6 @@ const Announcements = () => {
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed'),
   });
-  
   const deleteGlobalMutation = useMutation({
     mutationFn: deleteGlobalAnnouncement,
     onSuccess: () => {
@@ -105,8 +109,6 @@ const Announcements = () => {
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Failed'),
   });
-
-  // 4. Handle unified delete
   const handleDelete = () => {
     if (selected.type === 'global') {
       deleteGlobalMutation.mutate(selected._id);
@@ -131,7 +133,6 @@ const Announcements = () => {
             a.type === 'global' ? 'border-2 border-primary' : 'bg-white'
           }`}>
             
-            {/* Show delete for Admin (school), Poster (school), or Dev (global) */}
             {( (a.type === 'school' && (userInfo.role === 'SchoolAdmin' || a.postedBy._id === userInfo._id)) ||
               (a.type === 'global' && isDeveloper)
             ) && (
@@ -143,7 +144,6 @@ const Announcements = () => {
               </button>
             )}
 
-            {/* Global Badge */}
             {a.type === 'global' && (
               <div className="flex items-center text-primary font-semibold text-sm mb-1">
                 <Megaphone className="w-4 h-4 mr-2" />

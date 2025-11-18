@@ -7,9 +7,9 @@ import {
   handleWebhook,
   verifyWebhook,
   getPaymentStatus,
-  generateInvoice, // <-- IMPORT
+  generateInvoice, // <-- This import will now work
 } from '../controllers/billingController.js';
-import { protect, isSchoolAdmin, isDeveloper } from '../middleware/authMiddleware.js'; // <-- IMPORT isDeveloper
+import { protect, isSchoolAdmin, isDeveloper } from '../middleware/authMiddleware.js';
 
 // --- Public Webhook ---
 router.route('/webhook')
@@ -17,12 +17,10 @@ router.route('/webhook')
   .post(handleWebhook);
 
 // --- Private Admin/Staff Routes ---
-router.use(protect); // Global protection for all below
+router.use(protect);
 
-// Route for Admins to initiate payment
 router.route('/initiate-payment').post(isSchoolAdmin, initiatePayment);
 router.route('/status/:paymentId').get(isSchoolAdmin, getPaymentStatus);
-// Route for Admins OR Developer to view the invoice
-router.route('/invoices/:paymentId').get(generateInvoice);
+router.route('/invoices/:paymentId').get(generateInvoice); // This route is shared
 
 export default router;

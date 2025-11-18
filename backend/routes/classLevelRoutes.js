@@ -2,15 +2,20 @@
 
 import express from 'express';
 const router = express.Router();
-import { createClassLevel, getClassLevels } from '../controllers/classLevelController.js';
-import { protect, isSchoolAdmin } from '../middleware/authMiddleware.js';
+import {
+  createClassLevel,
+  getClassLevels,
+  getClassLevelById, // <-- 1. IMPORT
+} from '../controllers/classLevelController.js';
+import { protect, isSchoolAdmin, isSchoolStaff } from '../middleware/authMiddleware.js';
 
-// --- THIS IS THE FIX ---
-// GET /api/v1/classes: Now open to ANY logged-in user (role is checked by 'protect')
+// This route is open to all logged-in users
 router.route('/').get(protect, getClassLevels);
-// --- END OF FIX ---
 
-// POST /api/v1/classes: Still locked to Admins only
+// --- NEW ROUTE (for staff) ---
+router.route('/:id').get(protect, isSchoolStaff, getClassLevelById);
+
+// This route is for Admins only
 router.route('/').post(protect, isSchoolAdmin, createClassLevel);
 
 export default router;

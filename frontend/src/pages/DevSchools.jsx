@@ -5,7 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import { Plus, Power, PowerOff, Trash2 } from 'lucide-react'; // <-- IMPORT TRASH
+// --- THIS IS THE FIX ---
+import { Plus, Power, PowerOff, Trash2, FileText } from 'lucide-react';
+// --- END OF FIX ---
 import Button from '../components/common/Button';
 import RegisterSchoolModal from '../features/schools/RegisterSchoolModal';
 import ManageSchoolModal from '../features/schools/ManageSchoolModal';
@@ -14,7 +16,7 @@ import ConfirmationModal from '../components/common/ConfirmationModal';
 // --- API Functions ---
 const fetchSchools = async () => (await apiClient.get('/schools')).data;
 const toggleStatus = async (id) => (await apiClient.put(`/schools/${id}/toggle-status`)).data;
-const deleteSchool = async (id) => (await apiClient.delete(`/schools/${id}`)).data; // <-- NEW
+const deleteSchool = async (id) => (await apiClient.delete(`/schools/${id}`)).data;
 
 // --- Main Page Component ---
 const DevSchools = () => {
@@ -22,7 +24,7 @@ const DevSchools = () => {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [managingSchool, setManagingSchool] = useState(null);
   const [togglingSchool, setTogglingSchool] = useState(null);
-  const [deletingSchool, setDeletingSchool] = useState(null); // <-- NEW STATE
+  const [deletingSchool, setDeletingSchool] = useState(null);
 
   const { data: schools, isLoading } = useQuery({
     queryKey: ['schools'],
@@ -39,7 +41,6 @@ const DevSchools = () => {
     onError: (error) => toast.error('Failed to update status'),
   });
 
-  // --- NEW DELETE MUTATION ---
   const deleteMutation = useMutation({
     mutationFn: deleteSchool,
     onSuccess: () => {
@@ -61,6 +62,15 @@ const DevSchools = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+  
+  // --- INVOICE HANDLER (TEMPORARILY DISABLED) ---
+  const handleViewInvoice = (schoolId) => {
+    // We will build the backend for this in the next phase
+    toast.error('Viewing invoices is not fully implemented yet.');
+    // const paymentId = '...'; 
+    // window.open(`/api/v1/billing/invoices/${paymentId}`, '_blank');
+  };
+  // --- END OF HANDLER ---
 
   return (
     <div>
@@ -86,7 +96,10 @@ const DevSchools = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading && <tr><td colSpan="6" className="p-4 text-center">Loading...</td></tr>}
-              {schools?.map((school) => (
+              {schools?.map((school) => {
+                const isPaid = school.subscriptionStatus === 'Active';
+
+                return (
                 <tr key={school._id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{school.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{school.admin?.name}</td>
@@ -98,6 +111,14 @@ const DevSchools = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{school.plan?.name || 'No Plan'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{school.nextBillingDate ? format(new Date(school.nextBillingDate), 'PP') : 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <Button
+                      onClick={() => handleViewInvoice(school._id)} 
+                      className="w-auto text-sm py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" 
+                      title="View Latest Invoice (Coming Soon)"
+                      disabled={!isPaid}
+                    >
+                      <FileText className="w-4 h-4" />
+                    </Button>
                     <Button onClick={() => setManagingSchool(school)} className="w-auto text-sm py-1">
                       Manage
                     </Button>
@@ -108,7 +129,6 @@ const DevSchools = () => {
                     >
                       {school.subscriptionStatus === 'Canceled' ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
                     </Button>
-                    {/* --- NEW DELETE BUTTON --- */}
                     <Button
                       onClick={() => setDeletingSchool(school)}
                       className="w-auto text-sm py-1 bg-red-600 hover:bg-red-700"
@@ -118,7 +138,8 @@ const DevSchools = () => {
                     </Button>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -143,7 +164,6 @@ const DevSchools = () => {
         />
       )}
       
-      {/* --- NEW DELETE MODAL --- */}
       {deletingSchool && (
         <ConfirmationModal
           isOpen={!!deletingSchool}

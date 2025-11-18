@@ -50,7 +50,9 @@ import StudentTimetable from './pages/StudentTimetable.jsx';
 import QuizHistory from './pages/QuizHistory.jsx';
 import GlobalUsers from './pages/GlobalUsers.jsx';
 import GlobalResources from './pages/GlobalResources.jsx';
-import ActivityLog from './pages/ActivityLog.jsx'; // <-- IMPORT
+import ActivityLog from './pages/ActivityLog.jsx';
+import Billing from './pages/Billing.jsx';
+import ClassDetails from './pages/ClassDetails.jsx';
 
 // Placeholders
 const NotFound = () => <div className="flex items-center justify-center h-screen"><h1 className="text-4xl font-bold">404 - Page Not Found</h1></div>;
@@ -72,7 +74,7 @@ const AppRoutes = () => {
           <Route path="/dev/announcements" element={<GlobalAnnouncements />} />
           <Route path="/dev/support" element={<SupportTickets />} />
           <Route path="/support/ticket/:id" element={<TicketDetails />} />
-          <Route path="/dev/logs" element={<ActivityLog />} /> {/* <-- ADDED */}
+          <Route path="/dev/logs" element={<ActivityLog />} />
           <Route path="/dev/settings" element={<DevSettings />} />
           <Route path="*" element={<NotFound />} />
         </Route>
@@ -88,6 +90,7 @@ const AppRoutes = () => {
           <Route path="/" element={<SchoolOverview />} />
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/admin/timetables" element={<ManageTimetables />} />
+          <Route path="/admin/class/:id" element={<ClassDetails />} />
           <Route path="/transactions" element={<LibrarianDashboard />} />
           <Route path="/books" element={<Books />} />
           <Route path="/resources" element={<Resources />} />
@@ -97,6 +100,7 @@ const AppRoutes = () => {
           <Route path="/students" element={<Students />} />
           <Route path="/parents" element={<Parents />} />
           <Route path="/staff" element={<Staff />} />
+          <Route path="/subscription" element={<Billing />} />
           <Route path="/support" element={<AdminSupport />} />
           <Route path="/support/ticket/:id" element={<TicketDetails />} />
           <Route path="/settings" element={<Settings />} />
@@ -191,11 +195,16 @@ const AppRoutes = () => {
 function App() {
   return (
     <Routes>
+      {/* Public Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register-developer" element={<RegisterDeveloperPage />} />
+
+      {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/*" element={<AppRoutes />} />
       </Route>
+
+      {/* Catch-all 404 Route */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

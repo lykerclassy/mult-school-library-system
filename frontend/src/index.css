@@ -1,19 +1,28 @@
 /* /frontend/src/index.css */
-@import 'katex/dist/katex.min.css'; /* <-- 1. RE-ADD THIS LINE */
 
+/* 1. Import all of Tailwind */
+@import "tailwindcss";
+
+/* 2. Import the forms plugin */
+@plugin "@tailwindcss/forms";
+
+/* 3. Define all our custom colors using @theme */
+@theme {
+  --color-primary: #1D6E77;     /* The logo teal color */
+  --color-secondary: #F28A00;   /* The logo orange color */
+  --color-background: #F3F4F6; /* gray-100 */
+  --color-surface: #FFFFFF;     /* white */
+}
+
+/* 4. Import external libraries */
+@import 'katex/dist/katex.min.css';
 @import 'suneditor/dist/css/suneditor.min.css';
 
-@import 'tailwindcss';
-
+/* 5. Apply your custom base styles */
 @layer base {
   body {
-    /*
-      THE FIX:
-      Use a default Tailwind utility (bg-gray-100) here
-      instead of our custom utility (bg-background).
-      Our custom 'bg-background' will work fine in all our React components.
-    */
-    @apply bg-gray-100 text-gray-900 antialiased;
+    /* This will now use the '--color-background' we defined above */
+    @apply bg-background text-gray-900 antialiased;
   }
 
   /* Simple scrollbar styling */

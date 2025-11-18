@@ -262,9 +262,59 @@ const assignClassToStudent = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Student class updated' });
 });
 
+/**
+ * @desc    Get all students assigned to a specific class
+ * @route   GET /api/v1/students/class/:classId
+ * @access  Private (SchoolStaff)
+ */
+const getStudentsByClass = asyncHandler(async (req, res) => {
+  const students = await Student.find({
+    school: req.user.school,
+    classLevel: req.params.classId,
+  })
+  .populate('parent', 'name')
+  .sort({ name: 1 });
+  
+  res.status(200).json(students);
+});
+
+/**
+ * @desc    Get all students not assigned to any class
+ * @route   GET /api/v1/students/unassigned
+ * @access  Private (SchoolStaff)
+ */
+const getUnassignedStudents = asyncHandler(async (req, res) => {
+  const students = await Student.find({
+    school: req.user.school,
+    classLevel: null, // Find only students with no class
+  })
+  .select('name admissionNumber')
+  .sort({ name: 1 });
+  
+  res.status(200).json(students);
+});
+
+/**
+ * @desc    Unassign a student from a class
+ * @route   PUT /api/v1/students/:studentId/unassign-class
+ * @access  Private (SchoolAdmin)
+ */
+const unassignStudentFromClass = asyncHandler(async (req, res) => {
+  const student = await Student.findById(req.params.studentId);
+
+  if (!student || student.school.toString() !== req.user.school.toString()) {
+    res.status(404);
+    throw new Error('Student not found');
+  }
+
+  student.classLevel = null;
+  await student.save();
+  
+  res.status(200).json({ message: 'Student unassigned from class' });
+});
 
 // --- THIS IS THE FIX ---
-// The export block was missing 'assignClassToStudent'
+// The export block was missing all the functions
 export {
   addStudent,
   getStudents,
@@ -273,4 +323,7 @@ export {
   deleteStudent,
   linkParentToStudent,
   assignClassToStudent,
+  getStudentsByClass,
+  getUnassignedStudents,
+  unassignStudentFromClass,
 };

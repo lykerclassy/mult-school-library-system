@@ -6,22 +6,18 @@ import apiClient from '../api/axios';
 import toast from 'react-hot-toast';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
+import { Link } from 'react-router-dom'; // Make sure Link is imported
 
 // --- Reusable Category Manager Component ---
-const CategoryManager = ({ queryKey, apiPath, title }) => {
+const CategoryManager = ({ queryKey, apiPath, title, isClassLevel = false }) => {
   const queryClient = useQueryClient();
   const [name, setName] = React.useState('');
 
-  // 1. Fetch data
   const { data: items, isLoading } = useQuery({
     queryKey: [queryKey],
-    queryFn: async () => {
-      const { data } = await apiClient.get(apiPath);
-      return data;
-    },
+    queryFn: async () => (await apiClient.get(apiPath)).data,
   });
 
-  // 2. Create mutation
   const mutation = useMutation({
     mutationFn: (newName) => apiClient.post(apiPath, { name: newName }),
     onSuccess: () => {
@@ -29,12 +25,9 @@ const CategoryManager = ({ queryKey, apiPath, title }) => {
       queryClient.invalidateQueries([queryKey]);
       setName('');
     },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to add item');
-    },
+    onError: (error) => toast.error(error.response?.data?.message || 'Failed'),
   });
 
-  // 3. Handle submit
   const handleSubmit = (e) => {
     e.preventDefault();
     mutation.mutate(name);
@@ -44,7 +37,6 @@ const CategoryManager = ({ queryKey, apiPath, title }) => {
     <div className="bg-white p-6 rounded-lg shadow">
       <h2 className="text-xl font-semibold mb-4 text-gray-800">{title}</h2>
       
-      {/* Add Form */}
       <form onSubmit={handleSubmit} className="flex space-x-2 mb-4">
         <Input
           id={`add-${queryKey}`}
@@ -59,13 +51,24 @@ const CategoryManager = ({ queryKey, apiPath, title }) => {
         </Button>
       </form>
 
-      {/* List */}
       <div className="border rounded-md">
         {isLoading && <p className="p-4 text-gray-500">Loading...</p>}
         <ul className="divide-y divide-gray-200">
           {items?.map((item) => (
-            <li key={item._id} className="p-3 text-sm text-gray-700">
-              {item.name}
+            <li key={item._id} className="p-3 text-sm">
+              {/* --- THIS IS THE FIX --- */}
+              {isClassLevel ? (
+                <Link 
+                  to={`/admin/class/${item._id}`} 
+                  // Add styling to make it look like a link
+                  className="text-primary font-medium hover:underline"
+                >
+                  {item.name}
+                </Link>
+              ) : (
+                <span className="text-gray-700">{item.name}</span>
+              )}
+              {/* --- END OF FIX --- */}
             </li>
           ))}
           {items?.length === 0 && (
@@ -94,6 +97,7 @@ const Categories = () => {
           queryKey="classLevels"
           apiPath="/classes"
           title="Manage Class Levels"
+          isClassLevel={true}
         />
       </div>
     </div>
