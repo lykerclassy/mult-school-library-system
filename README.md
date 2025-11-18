@@ -1,8 +1,3 @@
-Here is the revised **`README.md`** file, reformatted for maximum clarity. It is designed so your instructor can easily read it, understand the project scope, and copy-paste the commands to run the application.
-
------
-
-````markdown
 # ScholarlyFlow - Unified School Management & Library SaaS
 
 **ScholarlyFlow** is a robust, multi-tenant SaaS (Software as a Service) platform designed to streamline school operations. It provides a centralized "Control Tower" for developers to manage multiple schools, while offering dedicated, feature-rich portals for School Administrators, Librarians, Teachers, Students, and Parents.
