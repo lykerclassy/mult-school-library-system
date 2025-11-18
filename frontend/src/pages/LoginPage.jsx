@@ -14,64 +14,62 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
 
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
-  const from = location.state?.from?.pathname || '/';
+  
+  // We remove the 'location.state.from' logic.
+  // This prevents the "stale redirect" bug when switching roles.
 
-  // --- Login Mutation (unchanged) ---
-  const loginMutation = useMutation({
+  const mutation = useMutation({
     mutationFn: (credentials) => apiClient.post('/auth/login', credentials),
     onSuccess: (data) => {
       toast.success('Login successful!');
       login(data.data);
-      navigate(from, { replace: true });
+      
+      // --- THIS IS THE FIX ---
+      // Always redirect to root ('/').
+      // The App.jsx router will automatically detect the user's role
+      // and route them to the correct Dashboard (Dev, Admin, or Student).
+      navigate('/', { replace: true });
+      // --- END OF FIX ---
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Invalid email or password');
     },
   });
 
-  // --- NEW: Demo Login Mutation ---
-  const demoLoginMutation = useMutation({
-    mutationFn: () => apiClient.post('/auth/demo-login'),
-    onSuccess: (data) => {
-      toast.success('Demo session started!');
-      login(data.data);
-      navigate(from, { replace: true }); // Redirect to dashboard
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Demo login failed');
-    },
-  });
-
   const handleSubmit = (e) => {
     e.preventDefault();
-    loginMutation.mutate({ email, password });
-  };
-
-  // --- NEW: Demo Button Handler ---
-  const handleDemoLogin = () => {
-    demoLoginMutation.mutate();
+    mutation.mutate({ email, password });
   };
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:overflow-hidden bg-gray-100">
       
-      {/* --- Image Side (unchanged) --- */}
+      {/* --- The Image Side --- */}
       <div className="relative h-40 w-full lg:h-full lg:w-1/2 flex-shrink-0">
-        <img className="absolute inset-0 object-cover w-full h-full" src="/login-background.jpg" alt="Students" />
+        <img 
+          className="absolute inset-0 object-cover w-full h-full" 
+          src="/login-background.png"
+          alt="Students in a library" 
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
         <div className="absolute bottom-0 left-0 p-6 z-10">
-          <h1 className="text-2xl lg:text-4xl font-bold text-white">Welcome Back.</h1>
+          <h1 className="text-2xl lg:text-4xl font-bold text-white">
+            Welcome Back.
+          </h1>
         </div>
       </div>
 
-      {/* --- Form Side (UPDATED) --- */}
+      {/* --- The Form Side --- */}
       <div className="flex-1 flex flex-col items-center justify-start lg:justify-center p-6 py-6 overflow-y-auto">
         <div className="w-full max-w-md">
           
           <div className="flex justify-center my-4">
-            <img src="/ScholarlyFlow-logo.png" alt="ScholarlyFlow Logo" className="h-40 lg:h-60" />
+            <img 
+              src="/ScholarlyFlow-logo.png"
+              alt="ScholarlyFlow Logo" 
+              className="h-16 lg:h-20"
+            />
           </div>
 
           <div>
@@ -100,21 +98,9 @@ const LoginPage = () => {
               required
             />
             
-            <Button type="submit" isLoading={loginMutation.isLoading}>
+            <Button type="submit" isLoading={mutation.isLoading}>
               Sign In
             </Button>
-            
-            {/* --- NEW DEMO BUTTON --- */}
-            <Button
-              type="button"
-              onClick={handleDemoLogin}
-              isLoading={demoLoginMutation.isLoading}
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
-              View Live Demo (Instructor)
-            </Button>
-            {/* --- END NEW BUTTON --- */}
-
           </form>
 
           <p className="text-sm text-center text-gray-600 mt-6">
