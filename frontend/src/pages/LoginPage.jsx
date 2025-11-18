@@ -49,7 +49,7 @@ const LoginPage = () => {
       <div className="relative h-40 w-full lg:h-full lg:w-1/2 flex-shrink-0">
         <img 
           className="absolute inset-0 object-cover w-full h-full" 
-          src="/login-background.png"
+          src="/login-background.jpg"
           alt="Students in a library" 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
@@ -68,7 +68,7 @@ const LoginPage = () => {
             <img 
               src="/ScholarlyFlow-logo.png"
               alt="ScholarlyFlow Logo" 
-              className="h-16 lg:h-20"
+              className="h-40 lg:h-60"
             />
           </div>
 
