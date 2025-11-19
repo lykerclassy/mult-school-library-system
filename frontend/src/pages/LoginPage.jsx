@@ -14,26 +14,35 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
-  
-  // We remove the 'location.state.from' logic.
-  // This prevents the "stale redirect" bug when switching roles.
+  const from = location.state?.from?.pathname || '/';
 
+  // --- 1. Standard Login Mutation ---
   const mutation = useMutation({
     mutationFn: (credentials) => apiClient.post('/auth/login', credentials),
     onSuccess: (data) => {
       toast.success('Login successful!');
       login(data.data);
       
-      // --- THIS IS THE FIX ---
-      // Always redirect to root ('/').
-      // The App.jsx router will automatically detect the user's role
-      // and route them to the correct Dashboard (Dev, Admin, or Student).
+      // Always redirect to root to let the Router handle the role-based redirect
       navigate('/', { replace: true });
-      // --- END OF FIX ---
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Invalid email or password');
+    },
+  });
+
+  // --- 2. Demo Login Mutation (RESTORED) ---
+  const demoLoginMutation = useMutation({
+    mutationFn: () => apiClient.post('/auth/demo-login'),
+    onSuccess: (data) => {
+      toast.success('Demo session started!');
+      login(data.data);
+      navigate('/', { replace: true });
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Demo login failed. Ensure demo account exists.');
     },
   });
 
@@ -42,7 +51,13 @@ const LoginPage = () => {
     mutation.mutate({ email, password });
   };
 
+  const handleDemoLogin = () => {
+    demoLoginMutation.mutate();
+  };
+
   return (
+    // On mobile: min-h-screen (page can scroll if needed)
+    // On desktop (lg): h-screen overflow-hidden (split-screen)
     <div className="flex flex-col lg:flex-row min-h-screen lg:h-screen lg:overflow-hidden bg-gray-100">
       
       {/* --- The Image Side --- */}
@@ -64,11 +79,12 @@ const LoginPage = () => {
       <div className="flex-1 flex flex-col items-center justify-start lg:justify-center p-6 py-6 overflow-y-auto">
         <div className="w-full max-w-md">
           
+          {/* Logo */}
           <div className="flex justify-center my-4">
             <img 
               src="/ScholarlyFlow-logo.png"
               alt="ScholarlyFlow Logo" 
-              className="h-40 lg:h-60"
+              className="h-40 lg:h-60" 
             />
           </div>
 
@@ -101,6 +117,24 @@ const LoginPage = () => {
             <Button type="submit" isLoading={mutation.isLoading}>
               Sign In
             </Button>
+
+            {/* --- 3. RESTORED DEMO BUTTON --- */}
+            <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-gray-300"></div>
+                <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase">or</span>
+                <div className="flex-grow border-t border-gray-300"></div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleDemoLogin}
+              isLoading={demoLoginMutation.isLoading}
+              className="w-full bg-green-600 hover:bg-green-700 focus:ring-green-500"
+            >
+              View Live Demo (Instructor)
+            </Button>
+            {/* --- END RESTORED BUTTON --- */}
+
           </form>
 
           <p className="text-sm text-center text-gray-600 mt-6">
